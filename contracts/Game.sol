@@ -1,4 +1,6 @@
-pragma solidity >=0.4.22 <0.9.0;
+// SPDX-License-Identifier: MIT 
+pragma solidity >=0.8.2 <0.9.0;
+pragma abicoder v2;
 
 contract Game {
 
@@ -124,7 +126,7 @@ contract Game {
         get the last move of the game
         then compute the merkle tree as a proof 
      */
-    function getLastMoves(bytes32 _gameId) public returns(string memory){
+    function getLastMoves(bytes32 _gameId) public view returns(string memory){
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 return matches[i].lastMove;
@@ -163,7 +165,7 @@ contract Game {
 
                     matches[i].moves.push();
                     // chiama la funzione checkWin e se true emetti evento vittoria
-                    if(checkWin(matches[i], msg.sender)){
+                    if(checkWin(matches[i])){
                         emit SendRequestBoard(msg.sender);
                     }else{
                         // altrimenti emetti l'evento cambia turno
@@ -182,7 +184,7 @@ contract Game {
         }
     }
 
-    function checkWin(GameMatch memory g, address sender) internal returns(bool){
+    function checkWin(GameMatch memory g) internal pure returns(bool){
         uint _shipToSink=0;
         for(uint i=0; i < g.ships.length; i++){
             _shipToSink+=g.ships[i];
@@ -236,13 +238,15 @@ contract Game {
     /**
         Some utility functions for internal use only    
      */
-    function splitString(string memory _s, string memory _separator) internal returns(string[] memory){
+    function splitString(string memory _s, string memory _separator) internal pure returns(string[] memory){
         string memory _temp="";
+        uint count=0;
         bytes memory _sbytes=bytes(_s);
-        string[] storage _res;
+        string[] memory _res = new string[](bytes(_s).length);
         for(uint i=0; i < _sbytes.length; i++){
             if(_sbytes[i]==bytes(_separator)[0]){
-                _res.push(_temp);
+                _res[count] = _temp;
+                count++;
             }
             else{
                 _temp=string(bytes.concat(bytes(_temp), bytes(_s)[i]));
@@ -251,7 +255,7 @@ contract Game {
         return _res;
     }
 
-    function stringToUint(string memory _str) internal returns (uint) {
+    function stringToUint(string memory _str) internal pure returns (uint) {
         bytes memory b = bytes(_str);
         uint result = 0;
         for (uint i = 0; i < b.length; i++) {
