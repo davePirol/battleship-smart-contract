@@ -3,16 +3,15 @@ pragma solidity >=0.4.22 <0.9.0;
 contract Game {
 
     struct GameMatch{
-        string gameId;
-        int tableSize;
-        int[] ships;
+        bytes32 gameId;
+        uint tableSize;
+        uint8[] ships;
         address p1; // also the creator
         address p2;
-        int registration;
+        int registration; // -1: not registered, otherwise the amount 
         int reward;
-        // winner
         bool turn; // if true --> p1 have to play otherwise p2 
-        bytes32 b1; // hash of the board --> merkle root?? is correct?? in that case 
+        bytes32 b1; // hash of the board to proof merkle tree
         bytes32 b2;
         string lastMove; // last move played in the game [1.2][2.4][1.1][2.2] --> first x then y
         string[] moves;     // l'array avrà quindi le caselle pari per il p1 e disapari per il p2 e li metterai le mosse fatte in chiaro
@@ -26,10 +25,10 @@ contract Game {
     event SendRequestBoard(address player);   //tell to the player that have won
     event SendWrongMove(address player);    //tell to the player that is not a valid move
 
-    function join(address player, string memory _gameId) external returns(string memory){
+    function join(address player, bytes32 _gameId) external returns(bytes32){
         
         // set player 2 in case of given game id
-        bytes memory _gameIdTest = bytes(_gameId);
+        bytes32 _gameIdTest = _gameId;
         if(_gameIdTest.length == 0){
             for(uint8 i=0; i<matches.length; i++){
                 if(matches[i].gameId == _gameId){
@@ -50,13 +49,20 @@ contract Game {
         }
 
         // otherwise create a new game
-        string memory newGameId = string(keccak256(matches.length));
-        GameMatch memory newGame = GameMatch(newGameId, 2, [2], player, address(0), -1, 0);
+        bytes32 newGameId = keccak256(abi.encode(matches.length));
+        uint8[] memory _ships= new uint8[](1);
+        string[] memory _moves = new string[](0);
+        _ships[0]=2;
+        GameMatch memory newGame = GameMatch(newGameId, 2, _ships, player, address(0), -1, 0, true, 0, 0, "",  _moves);
         matches.push(newGame);
         return newGameId;
     }
 
-    function setReward(string memory _gameId, int _amount) external returns(bool){
+    /**
+        The two part agree offline and the first who call this method
+        also set the reward.    
+     */
+    function setReward(bytes32 _gameId, int _amount) external returns(bool){
         for(uint8 i=0; i<matches.length; i++){
             if(matches[i].gameId == _gameId){
                 if(matches[i].registration < 0){
@@ -76,22 +82,22 @@ contract Game {
         }
     }
 
-    function payGame(string memory _gameId) public{
+    function payGame(bytes32 _gameId) public payable{
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
-                require(msg.value == matches[i].registration);
+                require(msg.value == uint(matches[i].registration));
             }
         }
     }
 
-    function setBoard(string memory _gameId, bytes32 hashedBoard) public{
+    function setBoard(bytes32 _gameId, bytes32 _hashedBoard) public{
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 if(matches[i].p1==msg.sender){
-                    matches[i].d1=hashedBoard;
+                    matches[i].b1=_hashedBoard;
                 }
                 else{
-                    matches[i].d2=hashedBoard;
+                    matches[i].b2=_hashedBoard;
                 }
                 matches[i].turn=true;
                 emit SendTurnAdvice(matches[i].p1);
@@ -99,33 +105,26 @@ contract Game {
         }
     }
 
-    function shoot(string calldata _gameId, string calldata _coordinate) public{
+    function shoot(bytes32 _gameId, string calldata _coordinate) public{
         // stores the coordination for the other player
-        
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 matches[i].lastMove=_coordinate;
                 if(matches[i].p1==msg.sender){
-                    SendMovesAdvice(matches[i].p1);
+                    emit SendMovesAdvice(matches[i].p1);
                 }
                 else{
-                    SendMovesAdvice(matches[i].p2);
+                    emit SendMovesAdvice(matches[i].p2);
                 }
             }
         }
-
-        // player compute the merkle proof 
-
-        // check the merkle proof
-
-        // store the coordinates
     }
 
     /**
         get the last move of the game
         then compute the merkle tree as a proof 
      */
-    function getLastMoves(string calldata _gameId) public returns(string memory){
+    function getLastMoves(bytes32 _gameId) public returns(string memory){
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 return matches[i].lastMove;
@@ -133,7 +132,7 @@ contract Game {
         }
     }
 
-    function checkMerkleProof(string calldata _gameId, bytes32[] calldata _sibilings) public returns(bool){
+    function checkMerkleProof(bytes32 _gameId, bytes32[] calldata _sibilings) public returns(bool){
         
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
@@ -145,15 +144,15 @@ contract Game {
                     _trueBoard=matches[i].b2;
                 }
                 
-                bytes32 _b;
-                for(int j=0; j < _sibilings.length; j++){
+                bytes32 _b; //=keccak256(_firstNode); wait for the reply of teacher
+                for(uint j=0; j < _sibilings.length; j++){
                     // compute the merkle proof
                     // there is an issue and it's reported in the PDF
-
                     bytes memory _temp = new bytes(64);
+                    bytes32 _b1=_sibilings[i];
                     assembly {
-                        mstore(add(_temp, 32), b1)
-                        mstore(add(_temp, 64), b2)
+                        mstore(add(_temp, 32), _b)
+                        mstore(add(_temp, 64), _b1)
                         _b := keccak256(0x00, 0x40)
                     }            
                 }
@@ -184,20 +183,20 @@ contract Game {
     }
 
     function checkWin(GameMatch memory g, address sender) internal returns(bool){
-        int _shipToSink=0;
-        for(int i=0; i < g.ships.length; i++){
+        uint _shipToSink=0;
+        for(uint i=0; i < g.ships.length; i++){
             _shipToSink+=g.ships[i];
         }
-        int _shipSinked=0;
+        uint _shipSinked=0;
         if(g.turn){
-            for (int i=0; i<g.moves.length; i+2){
-                string[] memory _s = splitString(g.moves, ".");
-                _shipSinked += _s[2];
+            for (uint i=0; i<g.moves.length; i+2){
+                string[] memory _s = splitString(g.moves[i], ".");
+                _shipSinked += stringToUint(_s[2]);
             }
         }else{
-            for(int i = 1; i<g.moves.length; i+2){
-                string[] memory _s = splitString(g.moves, ".");
-                _shipSinked += _s[2];
+            for(uint i = 1; i < g.moves.length; i+2){
+                string[] memory _s = splitString(g.moves[i], ".");
+                _shipSinked += stringToUint(_s[2]);
             }
         }
 
@@ -208,32 +207,59 @@ contract Game {
         }
     }
 
-    function splitString(string memory _s, string memory _separator) internal returns(string[] memory){
-        string memory _temp="";
-        string[] memory _res;
-        for(int i=0; i<_s.length; i++){
-            if(_s[i]==_separator){
-                _res.push(_temp);
-            }
-            else{
-                _temp=string(bytes.concat(bytes(_temp), bytes(_s[i])));
+    function checkBoard(bytes32 _gameId, string[][] memory _board) public payable returns(bool){
+        bytes1 _one = 0x01;        
+        for(uint8 i=0; i < matches.length; i++){
+            if(matches[i].gameId == _gameId){
+                //controllo sovrapposizioni navi
+                uint8 count=0;
+                for(uint q = 0; q < matches[i].tableSize; q++){
+                    for(uint k = 0; k < matches[i].tableSize; k++){
+                        if(bytes(_board[q][k])[0] == _one) //there is a ship
+                            count++;
+                    }
+                }
+
+                if(count == matches[i].ships.length){ //there aren't ship overlapped
+                    payable(msg.sender).transfer(address(this).balance);
+                }
             }
         }
-
-        return _res;
     }
-
-    function checkBoard() public payable{
-
-    }
-
-    //function pay 
 
     function notifyDelay() public{
         //wait for 5 blocks and if there isn't a reply
         // pay the other player
     }
 
-    
 
+    /**
+        Some utility functions for internal use only    
+     */
+    function splitString(string memory _s, string memory _separator) internal returns(string[] memory){
+        string memory _temp="";
+        bytes memory _sbytes=bytes(_s);
+        string[] storage _res;
+        for(uint i=0; i < _sbytes.length; i++){
+            if(_sbytes[i]==bytes(_separator)[0]){
+                _res.push(_temp);
+            }
+            else{
+                _temp=string(bytes.concat(bytes(_temp), bytes(_s)[i]));
+            }
+        }
+        return _res;
+    }
+
+    function stringToUint(string memory _str) internal returns (uint) {
+        bytes memory b = bytes(_str);
+        uint result = 0;
+        for (uint i = 0; i < b.length; i++) {
+            uint c = uint(uint8(b[i]));
+            if (c >= 48 && c <= 57) {
+                result = result * 10 + (c - 48);
+            }
+        }
+        return result;
+    }
 }
