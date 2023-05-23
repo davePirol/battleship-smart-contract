@@ -27,7 +27,7 @@ contract Game {
     event SendRequestBoard(address player);   //tell to the player that have won
     event SendWrongMove(address player);    //tell to the player that is not a valid move
 
-    function join(address player, bytes32 _gameId) external returns(bytes32){
+    function join(bytes32 _gameId, bool _isNew, uint8[] memory _info) external returns(bytes32){
         
         // set player 2 in case of given game id
         bytes32 _gameIdTest = _gameId;
@@ -35,9 +35,11 @@ contract Game {
             for(uint8 i=0; i<matches.length; i++){
                 if(matches[i].gameId == _gameId){
                     if(matches[i].p2 == address(0)){
-                        matches[i].p2 = player;
+                        matches[i].p2 = msg.sender;
                         return matches[i].gameId;
                     }
+                    else
+                        return 0;
                 }
             }
         }
@@ -45,19 +47,22 @@ contract Game {
         // set player 2 in random game if available
         for(uint8 i=0; i<matches.length; i++){
             if(matches[i].p2 != address(0)){
-                matches[i].p2=player;
+                matches[i].p2=msg.sender;
                 return matches[i].gameId;
             }
         }
 
-        // otherwise create a new game
-        bytes32 newGameId = keccak256(abi.encode(matches.length));
-        uint8[] memory _ships= new uint8[](1);
-        string[] memory _moves = new string[](0);
-        _ships[0]=2;
-        GameMatch memory newGame = GameMatch(newGameId, 2, _ships, player, address(0), -1, 0, true, 0, 0, "",  _moves);
-        matches.push(newGame);
-        return newGameId;
+        if(_isNew){
+            // otherwise create a new game
+            bytes32 newGameId = keccak256(abi.encode(matches.length));
+            uint8[] memory _ships= new uint8[](1);
+            string[] memory _moves = new string[](0);
+            _ships[0]=_info[0];
+            GameMatch memory newGame = GameMatch(newGameId, _info[1], _ships, msg.sender, address(0), -1, 0, true, 0, 0, "",  _moves);
+            matches.push(newGame);
+            return newGameId;
+        }else
+            return 0;
     }
 
     /**
