@@ -89,6 +89,18 @@ contract Game {
         }
     }
 
+    function getInformations() external returns(GameMatch memory){
+        /// TODO
+    }
+
+    function getReward(bytes32 _gameId) external view returns(int){
+        for(uint8 i=0; i < matches.length; i++){
+            if(matches[i].gameId == _gameId){
+                return matches[i].registration;
+            }
+        }
+    }
+
     function payGame(bytes32 _gameId) public payable{
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
