@@ -20,35 +20,30 @@ contract Game {
                             // con anche il risultato della mossa tipo 1.1.0 (casella 1 1 mancato) 2.1.1 (casella 2 1 colpito)
     }
 
-    GameMatch[] matches;
-    event SendRequestAmount(address p1, address p2);    //tell to the player to put the money to start play
+    GameMatch[] public matches;
+    event SendNewGameCreate(address player, bytes32 gameId);
+    event SendRequestAmount(address player, int amount);    //tell to the player to put the money to start play
     event SendTurnAdvice(address player);   //tell to the player that is his/her turn
     event SendMovesAdvice(address player);  //tell to the player that have been shoot
     event SendRequestBoard(address player);   //tell to the player that have won
     event SendWrongMove(address player);    //tell to the player that is not a valid move
 
-    function join(bytes32 _gameId, bool _isNew, uint8[] memory _info) external returns(bytes32){
+    function join(bytes32 _gameId, bool _isNew, uint8[] memory _info) public{
         
         // set player 2 in case of given game id
-        bytes32 _gameIdTest = _gameId;
-        if(_gameIdTest.length == 0){
-            for(uint8 i=0; i<matches.length; i++){
+        if(_gameId != 0){
+            for(uint8 i=0; i < matches.length; i++){
                 if(matches[i].gameId == _gameId){
                     if(matches[i].p2 == address(0)){
                         matches[i].p2 = msg.sender;
-                        return matches[i].gameId;
+                        emit SendNewGameCreate(msg.sender, matches[i].gameId);
+                        return;
                     }
-                    else
-                        return 0;
+                    else{
+                        emit SendNewGameCreate(msg.sender, 0);
+                        return;
+                    }
                 }
-            }
-        }
-
-        // set player 2 in random game if available
-        for(uint8 i=0; i<matches.length; i++){
-            if(matches[i].p2 != address(0)){
-                matches[i].p2=msg.sender;
-                return matches[i].gameId;
             }
         }
 
@@ -58,38 +53,52 @@ contract Game {
             uint8[] memory _ships= new uint8[](1);
             string[] memory _moves = new string[](0);
             _ships[0]=_info[0];
-            GameMatch memory newGame = GameMatch(newGameId, _info[1], _ships, msg.sender, address(0), -1, 0, true, 0, 0, "",  _moves);
-            matches.push(newGame);
-            return newGameId;
-        }else
-            return 0;
+            matches.push(GameMatch(newGameId, _info[1], _ships, msg.sender, address(0), -1, 0, true, 0, 0, "",  _moves));
+            emit SendNewGameCreate(msg.sender, newGameId);
+            return;
+        }
+
+        // set player 2 in random game if available
+        for(uint8 i=0; i<matches.length; i++){
+            if(matches[i].p2 != address(0)){
+                matches[i].p2=msg.sender;
+                emit SendNewGameCreate(msg.sender, matches[i].gameId);
+                return;
+            }
+        }
+
+        emit SendNewGameCreate(msg.sender, 0);
     }
 
     /**
         The two part agree offline and the first who call this method
         also set the reward.    
      */
-    function setReward(bytes32 _gameId, int _amount) external returns(bool){
+    function setReward(bytes32 _gameId, int _registration) external{
         for(uint8 i=0; i<matches.length; i++){
             if(matches[i].gameId == _gameId){
                 if(matches[i].registration < 0){
-                    matches[i].registration=_amount;
-                    return true;
+                    matches[i].registration=_registration;
+                    if(matches[i].p1==msg.sender)
+                        emit SendRequestAmount(matches[i].p2, _registration);
+                    else
+                        emit SendRequestAmount(matches[i].p2, _registration);
+                    return;
                 }
                 else{
-                    if(matches[i].registration == _amount){
-                        matches[i].reward=_amount*2;
-                        return true;
+                    if(matches[i].registration == _registration){
+                        matches[i].reward=_registration*2;
+                        return;
                     }
                     else{
-                        return false;
+                        return;
                     }
                 }
             }
         }
     }
 
-    function getInformations() external returns(GameMatch memory){
+    function getInformations(bytes32 _gameId) external returns(GameMatch memory){
         /// TODO
     }
 
@@ -101,10 +110,10 @@ contract Game {
         }
     }
 
-    function payGame(bytes32 _gameId) public payable{
+    function pay(bytes32 _gameId) public payable{
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
-                require(msg.value == uint(matches[i].registration));
+                require((msg.value/1000000000000000000) == uint(matches[i].registration));
             }
         }
     }
@@ -249,6 +258,10 @@ contract Game {
     function notifyDelay() public{
         //wait for 5 blocks and if there isn't a reply
         // pay the other player
+    }
+
+    fallback() external{
+        pay(0);
     }
 
 
