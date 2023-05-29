@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT 
 pragma solidity >=0.8.2 <0.9.0;
 pragma abicoder v2;
+pragma experimental ABIEncoderV2;
 
 contract Game {
 
     struct GameMatch{
         bytes32 gameId;
         uint tableSize;
-        uint8[] ships;
+        uint ships;
         address p1; // also the creator
         address p2;
         int registration; // -1: not registered, otherwise the amount 
@@ -15,7 +16,7 @@ contract Game {
         bool turn; // if true --> p1 have to play otherwise p2 
         bytes32 b1; // hash of the board to proof merkle tree
         bytes32 b2;
-        string lastMove; // last move played in the game [1.2][2.4][1.1][2.2] --> first x then y
+        string lastMove; // last move played in the game [1-2][2-4][1-1][2-2] --> first x then y
         string[] moves;     // l'array avrà quindi le caselle pari per il p1 e disapari per il p2 e li metterai le mosse fatte in chiaro
                             // con anche il risultato della mossa tipo 1.1.0 (casella 1 1 mancato) 2.1.1 (casella 2 1 colpito)
     }
@@ -52,8 +53,7 @@ contract Game {
             bytes32 newGameId = keccak256(abi.encode(matches.length));
             uint8[] memory _ships= new uint8[](1);
             string[] memory _moves = new string[](0);
-            _ships[0]=_info[0];
-            matches.push(GameMatch(newGameId, _info[1], _ships, msg.sender, address(0), -1, 0, true, 0, 0, "",  _moves));
+            matches.push(GameMatch(newGameId, _info[1], _info[0], msg.sender, address(0), -1, 0, true, 0, 0, "",  _moves));
             emit SendNewGameCreate(msg.sender, newGameId);
             return;
         }
@@ -98,8 +98,25 @@ contract Game {
         }
     }
 
-    function getInformations(bytes32 _gameId) external returns(GameMatch memory){
-        /// TODO
+    function getInformations(bytes32 _gameId) external view returns(
+        bytes32, 
+        bytes memory,
+        bytes memory,
+        address ,
+        address ,
+        bytes memory ,
+        bytes memory ,
+        bool , 
+        bytes32 ,
+        bytes32 ,
+        string memory,
+        string[] memory
+    ){
+        for(uint8 i=0; i < matches.length; i++){
+            if(matches[i].gameId == _gameId){
+                return(matches[i].gameId, abi.encodePacked(matches[i].tableSize), abi.encodePacked(matches[i].ships), matches[i].p1, matches[i].p2, abi.encodePacked(matches[i].registration), abi.encodePacked(matches[i].reward), matches[i].turn, matches[i].b1, matches[i].b2, matches[i].lastMove, matches[i].moves);
+            }
+        }
     }
 
     function getReward(bytes32 _gameId) external view returns(int){
@@ -139,10 +156,10 @@ contract Game {
             if(matches[i].gameId == _gameId){
                 matches[i].lastMove=_coordinate;
                 if(matches[i].p1==msg.sender){
-                    emit SendMovesAdvice(matches[i].p1);
+                    emit SendMovesAdvice(matches[i].p2);
                 }
                 else{
-                    emit SendMovesAdvice(matches[i].p2);
+                    emit SendMovesAdvice(matches[i].p1);
                 }
             }
         }
@@ -196,7 +213,7 @@ contract Game {
                     }else{
                         // altrimenti emetti l'evento cambia turno
                         emit SendTurnAdvice(msg.sender);
-                        matches[i].turn ? matches[i].turn=false : matches[i].turn=true;
+                        matches[i].turn ? matches[i].turn=false : matches[i].turn=true; //meglio riuscire a toglierla
                     }
                         
                     return true;
@@ -211,10 +228,7 @@ contract Game {
     }
 
     function checkWin(GameMatch memory g) internal pure returns(bool){
-        uint _shipToSink=0;
-        for(uint i=0; i < g.ships.length; i++){
-            _shipToSink+=g.ships[i];
-        }
+        uint _shipToSink=g.ships*2;
         uint _shipSinked=0;
         if(g.turn){
             for (uint i=0; i<g.moves.length; i+2){
@@ -248,7 +262,7 @@ contract Game {
                     }
                 }
 
-                if(count == matches[i].ships.length){ //there aren't ship overlapped
+                if(count == matches[i].ships){ //there aren't ship overlapped
                     payable(msg.sender).transfer(address(this).balance);
                 }
             }

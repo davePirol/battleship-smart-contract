@@ -89,6 +89,16 @@
         </div>
       </div>
 
+      <div id="enemyBoard" hidden>
+        <h2>Result of your move: <span id="resultMove"></span></h2>
+        <div id="messageArea"></div>
+          <table id="adversaryBoard">            
+            
+          </table>
+          <button type="button" class="btn btn-primary" id="sendMove" disabled>SEND MOVE</button>
+      </div>
+    </div>
+
         <!-- solo per prova 
         <tr>
           <th class="numbers"></th>
@@ -123,7 +133,7 @@
     
           <tr>
             <th class="letters">A</th>
-            <td><div id="00"></div></td>
+            <td><div id="0.0"></div></td>
             <td><div id="01"></div></td>
             <td><div id="02"></div></td>
             <td><div id="03"></div></td>
@@ -192,6 +202,8 @@
             <td><div id="66"></div></td>
           </tr>
         </table>
+
+        <button type="button" class="btn btn-primary" id="saveBoard_old">SAVE BOARD</button>
       </div>
 
       <div aria-live="polite" aria-atomic="true" style="position: relative; min-height: 200px;">

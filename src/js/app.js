@@ -1,6 +1,8 @@
 App = {
   web3Provider: null,
   contracts: {},
+  infos: null,
+  rand:null,
   
 
   init: async function() {
@@ -23,6 +25,7 @@ App = {
       App.web3Provider = new Web3.provider.HttpProvider("http://localhost:7545");
     }
     web3 = new Web3(App.web3Provider);
+
     return App.initContract();
   },
 
@@ -43,12 +46,7 @@ App = {
     $(document).on('click', '#setRegAmount', App.setRegistrationAmount);
     $(document).on('click', '#payGame', App.pay);
     $(document).on('click', '#saveBoard', App.sendBoard);
-
-    /*App.contracts.Battleship.SendRequestAmount().watch(
-      function(err, result){
-        console.log(result);
-      }
-    );*/
+    $(document).on('click', '#sendMove', App.sendMove);
   },
 
   startNewGame: function(){
@@ -95,7 +93,7 @@ App = {
         $('#gameIDreg').text(newGameId);
         $('#chooseSize').attr('hidden', true);
         $('#registration').attr('hidden', false);
-        return App.getRegistrationAmount;
+        return App.getInfo();
       }).catch(function(err){
         console.log(err);
       });
@@ -113,11 +111,19 @@ App = {
 
         if (newGameId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
 
-          $('#toastJoinSuccess').toast('show');
+          var newGameId=result.logs[0].args.gameId
           $('#gameIDreg').text(newGameId);
           $('#chooseSize').attr('hidden', true);
           $('#registration').attr('hidden', false);
-          return App.getRegistrationAmount;
+          
+          var arr=App.getInfo();
+          $('#nShips').val(parseInt(arr[2], 16));
+          $('#tableWidth').val(parseInt(arr[1], 16));
+          if(arr[5] > -1){
+            $('#registrationAmount').val(parseInt(arr[1], 16));
+            $('#registrationAmount').attr('disabled', true);
+          }
+
         }else{
           $('#toastJoinError').toast('show');
           return;
@@ -133,6 +139,7 @@ App = {
     App.contracts.Battleship.deployed().then(function (instance){
       return instance.getReward.call(gameId);
     }).then(function(result){
+      console.log(result);
       if($('#registrationAmount').val()!='')
         $('#registrationAmount').attr('disabled', true);
       else{
@@ -192,13 +199,67 @@ App = {
     var gameId=$('#gameIDreg').text();
     var hashedBoard=hashBoard();
     console.log(hashedBoard); 
+    web3.eth.getAccounts(function(error, accounts) {
+      if (error) { console.log(error); }
+      var account = accounts[0];
+      App.contracts.Battleship.deployed().then(function (instance){
+        return instance.setBoard(gameId, hashedBoard, {from: account});
+      }).then(function(result){
+          console.log(result);
+          var n=$('#tableWidth').val();
+          setAdversaryTable(n);
+          $('#enemyBoard').attr("hidden", false);
+
+      }).catch(function(err){
+        console.log(err.message);
+      });
+    });
+  },
+
+  getInfo: function(){
+    var gameId=$('#gameIDreg').text();
+    console.log();
     App.contracts.Battleship.deployed().then(function (instance){
-      return instance.setBoard.call(gameId, hashedBoard);
+      return instance.getInformations.call(gameId);
     }).then(function(result){
-        console.log(result);
+      App.infos = result;  
+      $('#nShips').val(parseInt(result[2], 16));
+      $('#tableWidth').val(parseInt(result[1], 16));
+      if(parseInt(result[5], 16) > -1){
+        $('#registrationAmount').val(parseInt(result[5], 16));
+        $('#registrationAmount').attr('disabled', true);
+      }    
     }).catch(function(err){
       console.log(err.message);
     });
+  },
+
+  sendMove: function(){
+    var gameId=$('#gameIDreg').text();
+    var idRaw;
+    var table=document.getElementById("adversaryBoard");
+    for (var i = 1, row; row = table.rows[i]; i++) {
+      for (var j = 1, col; col = row.cells[j]; j++) {
+          if(col.firstChild.getAttribute("class") == 'redB')
+              idRaw=col.firstChild.id;
+      }  
+    }
+    var id=idRaw.substring(1);
+    var coordinate=id;
+
+    event.preventDefault();
+    web3.eth.getAccounts(function(error, accounts) {
+      if (error) { console.log(error); }
+      var account = accounts[0];
+      App.contracts.Battleship.deployed().then(function (instance) {
+        return instance.shoot(gameId, coordinate,{from: account});
+      }).then(function(result) {
+        console.log(result);
+      }).catch(function(err) {
+        console.log(err.message);
+      });
+    });
+
   },
 
   //standard template for call
@@ -256,7 +317,35 @@ function setTable(n){
         row.insertCell(j).outerHTML = '<th class="letters">'+letters[i]+'</th>';
       }else{
         var cell = row.insertCell(j);
-        var index="" + i + n;
+        var index="" + i + "-" + j;
+        cell.setAttribute("class", "mine");
+        cell.innerHTML='<div id="'+index+'"></div>';
+      }
+    }
+  }
+}
+
+function setAdversaryTable(n){
+  let table=document.getElementById("adversaryBoard");
+  var row = table.insertRow(0);
+  var letters=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'];
+  for(var j=0; j<=n; j++){
+    if(j>0){
+      row.insertCell(j).outerHTML = '<th class="numbers">'+(j-1)+'</th>';
+    }else{
+      row.insertCell(j).outerHTML = '<th class="numbers"></th>';
+    }
+  }
+
+  for(var i=1; i<=n; i++){
+    var row = table.insertRow(i);
+    for(var j=0; j<=n; j++){
+      if(j==0){
+        row.insertCell(j).outerHTML = '<th class="letters">'+letters[i]+'</th>';
+      }else{
+        var cell = row.insertCell(j);
+        cell.setAttribute("class", "him");
+        var index="a" + i + "-" + j;
         cell.innerHTML='<div id="'+index+'"></div>';
       }
     }
@@ -302,9 +391,38 @@ function hashBoard(){
     var hashed=keccak256(toHash).toString('hex');
     temp.push(hashed);
   }
+  App.rand=random;
 
   return temp[0];
 }
 
 
 
+
+
+/**
+ * var subscription = web3.eth.subscribe('logs',{ 
+      address: "0xadc048ED9545051b82c1B46f4A40f1C08F2c705D",
+      topics: ["0xa42dd9e1d9175b98ede6b33b1bc3f78cd3f694b7213da993c11516d22751a66d",
+              "0x24e3120dee1a7172611f0ca41434f8041a1ed6c9f69a04417e48a62dc92979fc",
+              "0x8baeb50b886fb168a371117c6cb88337a25606fe162d778425bd068ef9d25da5",
+              "0xc7e0345890e3d3863c7f66518e8fe24252b162afe06faf9b20c50ac5d774fdfa",
+              "0xbac0d2f1d5b86b0ca75625d37a148747faa00f4de41c5c586f79880e455c2dc5",
+              "0x9709744f7c7359edb2e10790a4a8501b0bb5fcec380968177c7a3e91249d52d8"]
+    },(error, event) => {
+        //Do something
+    }).on("connected", function(subscriptionId){
+        console.log('SubID: ',subscriptionId);
+    })
+    .on('data', function(event){
+        console.log('Event:', event); 
+        console.log(event.transactionHash);
+        //Write send mail here!
+    })
+    .on('changed', function(event){
+        // remove event from local database
+    })
+    .on('error', function(error, receipt) { 
+        console.log('Error:', error, receipt);
+    });
+ */
