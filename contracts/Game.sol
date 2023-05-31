@@ -25,9 +25,11 @@ contract Game {
     event SendNewGameCreate(address player, bytes32 gameId);
     event SendRequestAmount(address player, int amount);    //tell to the player to put the money to start play
     event SendTurnAdvice(address player);   //tell to the player that is his/her turn
-    event SendMovesAdvice(address player);  //tell to the player that have been shoot
+    event SendMovesAdvice(address player, string move);  //tell to the player that have been shoot
     event SendRequestBoard(address player);   //tell to the player that have won
     event SendWrongMove(address player);    //tell to the player that is not a valid move
+    event SendVictory(address player);
+    event SendMoveResult(address player, bool hit);
 
     function join(bytes32 _gameId, bool _isNew, uint8[] memory _info) public{
         
@@ -156,10 +158,10 @@ contract Game {
             if(matches[i].gameId == _gameId){
                 matches[i].lastMove=_coordinate;
                 if(matches[i].p1==msg.sender){
-                    emit SendMovesAdvice(matches[i].p2);
+                    emit SendMovesAdvice(matches[i].p2, _coordinate);
                 }
                 else{
-                    emit SendMovesAdvice(matches[i].p1);
+                    emit SendMovesAdvice(matches[i].p1, _coordinate);
                 }
             }
         }
@@ -177,7 +179,7 @@ contract Game {
         }
     }
 
-    function checkMerkleProof(bytes32 _gameId, bytes32[] calldata _sibilings) public returns(bool){
+    function checkMerkleProof(bytes32 _gameId, bytes32[] memory _sibilings, bool _hit) public {
         
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
@@ -188,16 +190,33 @@ contract Game {
                 else{
                     _trueBoard=matches[i].b2;
                 }
+        
+                bytes32 _b;
+                // control if i have to switch the first or the second element of the sibilings array
+                // questo problema è sorto perché la merkle proof non viene applicata nel migliore dei modi
+                // infatti dovrei computare l'hash della foglia di cui voglio sapere la prova, ma 
+                // in quel caso dovrei avere il valore randomico che compone l'hash della foglia.
+                // Ma così facendo rovino la segretezza del nodo
+                uint row = stringToUint(splitString(matches[i].lastMove, "-")[0]) - 1;
+                uint col = stringToUint(splitString(matches[i].lastMove, "-")[0]) - 1;
+                uint toCheck = row*matches[i].tableSize + col;
                 
-                bytes32 _b; //=keccak256(_firstNode); wait for the reply of teacher
-                for(uint j=0; j < _sibilings.length; j++){
+                if(toCheck%2!=0){
+                    bytes32 _t = _sibilings[0];
+                    _sibilings[0] = _sibilings[1];
+                    _sibilings[1] = _t;
+                }
+
+
+                for(uint j=0; j < _sibilings.length; j+2){
                     // compute the merkle proof
-                    // there is an issue and it's reported in the PDF
+                    
                     bytes memory _temp = new bytes(64);
                     bytes32 _b1=_sibilings[i];
+                    bytes32 _b2=_sibilings[i+1];
                     assembly {
-                        mstore(add(_temp, 32), _b)
-                        mstore(add(_temp, 64), _b1)
+                        mstore(add(_temp, 32), _b1)
+                        mstore(add(_temp, 64), _b2)
                         _b := keccak256(0x00, 0x40)
                     }            
                 }
@@ -207,20 +226,27 @@ contract Game {
                 if(_b == _trueBoard){
 
                     matches[i].moves.push();
-                    // chiama la funzione checkWin e se true emetti evento vittoria
+                    // chiama la funzione checkWin e richiedi la board da controllare
                     if(checkWin(matches[i])){
                         emit SendRequestBoard(msg.sender);
+                        
                     }else{
                         // altrimenti emetti l'evento cambia turno
                         emit SendTurnAdvice(msg.sender);
                         matches[i].turn ? matches[i].turn=false : matches[i].turn=true; //meglio riuscire a toglierla
                     }
+
+                    if(msg.sender==matches[i].p1){
+                        emit SendMoveResult(matches[i].p2, _hit);
+                    }else{
+                        emit SendMoveResult(matches[i].p1, _hit);
+                    }
                         
-                    return true;
+                    return;
                 }
                 else{   
                     emit SendWrongMove(msg.sender);             
-                    return false;
+                    return;
                 }
                 
             }

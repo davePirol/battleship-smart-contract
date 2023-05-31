@@ -3,6 +3,7 @@ App = {
   contracts: {},
   infos: null,
   rand:null,
+  sibilings:[],
   
 
   init: async function() {
@@ -25,7 +26,7 @@ App = {
       App.web3Provider = new Web3.provider.HttpProvider("http://localhost:7545");
     }
     web3 = new Web3(App.web3Provider);
-
+    
     return App.initContract();
   },
 
@@ -34,7 +35,9 @@ App = {
       var BattleshipArtifact = data;
       App.contracts.Battleship = TruffleContract(BattleshipArtifact);
       App.contracts.Battleship.setProvider(App.web3Provider);
-    });    
+    }).done(function() {
+      App.listenForEvents(); // Call listenForEvents here
+    });;    
 
     return App.bindEvents();
   },
@@ -262,6 +265,96 @@ App = {
 
   },
 
+  listenForEvents: function(){
+    App.contracts.Battleship.deployed().then(function (instance) {
+      instance.SendNewGameCreate({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }
+      });
+      instance.SendRequestAmount({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }
+        console.log(result);
+      });
+      instance.SendMovesAdvice({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }
+        console.log(result.args);
+        if(result.args.player==web3.eth.accounts[0]){
+          // controlla le coordinate e dai la merkle sibilings
+          // result.arg.move
+          var idToCheck=result.arg.move.substring(1);
+          if($('#'+idToCheck).attr('class')=='hit')
+            var hit=true;
+          else
+            var hit=false;
+
+          var gameId=$('#gameIDreg').text();
+
+          App.contracts.Battleship.deployed().then(function (instance){
+            var sibilings=App.getSibilings();
+            return instance.checkMerkleProof.call(gameId, sibilings, hit);
+          }).then(function(result){
+            console.log(result);
+            if(result){
+              $('#a'+idToCheck).attr('class', 'hit');
+              $('#resultMove').text('hit');
+            }else{
+              $('#a'+idToCheck).attr('class', 'miss');
+              $('#resultMove').text('miss');
+            }
+            $('#sendMove').attr('disabled', true);            
+          }).catch(function(err){
+            console.log(err.message);
+          });
+        }
+      });
+      instance.SendTurnAdvice({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }
+        console.log(result.args);
+        if(result.args.player==web3.eth.accounts[0]){
+          $('#sendMove').attr('disabled', false);
+          $('#advice').text("It's your turn: shoot!");
+        }
+      });
+    });
+  },
+
+  getSibilings: function(id){
+    const proof = [];
+    const treeHeight = Math.log2(App.sibilings.length);
+    
+    // -1 is because the id start from 1-1
+    var row = parseInt($('#tableWidth').val()) - parseInt(id.split("-")[0]);
+    var col = parseInt($('#tableWidth').val()) - parseInt(id.split("-")[1]);
+
+    // -1 is for the length
+    var leafIndex = App.sibilings.length - 1 - (row * parseInt($('#tableWidth').val()) + col);
+    // insert also the first node
+    proof.push(App.sibilings[leafIndex]);
+
+    for (let level = 0; level < treeHeight; level++) {
+      if (leafIndex % 2 === 1) { // left child
+        const siblingIndex = leafIndex + 1;
+        proof.push(App.sibilings[siblingIndex]);
+      } else { // right child
+        const siblingIndex = leafIndex - 1;
+        proof.push(App.sibilings[siblingIndex]);
+      }
+      leafIndex = Math.floor(leafIndex / 2);
+    }
+
+    // remove the root
+    proof.pop();
+
+    return proof;
+  },
+
   //standard template for call
   markAdopted: function() {
     App.contracts.Battleship.deployed().then(function (instance){
@@ -352,10 +445,6 @@ function setAdversaryTable(n){
   }
 }
 
-function evento(){
-  
-}
-
 function hashBoard(){
   var table=document.getElementById("gameBoard");
   var n=Math.pow(parseInt($('#tableWidth').val()), 2);
@@ -383,46 +472,24 @@ function hashBoard(){
     var hashed=keccak256(toHash).toString('hex');
     temp.push(hashed);
   }
-
+  var _sib=[];
   while(temp.length!=1){
     var first=temp.shift();
     var second=temp.shift();
     var toHash=""+first+second;
     var hashed=keccak256(toHash).toString('hex');
     temp.push(hashed);
+    _sib.push(first);
+    _sib.push(second);
   }
   App.rand=random;
-
+  _sib.push(temp[0]); //insert the root
+  
+  //divide in two the array, the second part is reversed to have a representation of a tree 
+  // take the first x^2 where x is the table width
+  _f=_sib.slice(0, n);
+  _s=_sib.slice(n, _sib.length);
+  _s.reverse();
+  App.sibilings=_s.concat(_f);
   return temp[0];
 }
-
-
-
-
-
-/**
- * var subscription = web3.eth.subscribe('logs',{ 
-      address: "0xadc048ED9545051b82c1B46f4A40f1C08F2c705D",
-      topics: ["0xa42dd9e1d9175b98ede6b33b1bc3f78cd3f694b7213da993c11516d22751a66d",
-              "0x24e3120dee1a7172611f0ca41434f8041a1ed6c9f69a04417e48a62dc92979fc",
-              "0x8baeb50b886fb168a371117c6cb88337a25606fe162d778425bd068ef9d25da5",
-              "0xc7e0345890e3d3863c7f66518e8fe24252b162afe06faf9b20c50ac5d774fdfa",
-              "0xbac0d2f1d5b86b0ca75625d37a148747faa00f4de41c5c586f79880e455c2dc5",
-              "0x9709744f7c7359edb2e10790a4a8501b0bb5fcec380968177c7a3e91249d52d8"]
-    },(error, event) => {
-        //Do something
-    }).on("connected", function(subscriptionId){
-        console.log('SubID: ',subscriptionId);
-    })
-    .on('data', function(event){
-        console.log('Event:', event); 
-        console.log(event.transactionHash);
-        //Write send mail here!
-    })
-    .on('changed', function(event){
-        // remove event from local database
-    })
-    .on('error', function(error, receipt) { 
-        console.log('Error:', error, receipt);
-    });
- */
