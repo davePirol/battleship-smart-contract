@@ -29,7 +29,7 @@ contract Game {
     event SendRequestBoard(address player);   //tell to the player that have won
     event SendWrongMove(address player);    //tell to the player that is not a valid move
     event SendVictory(address player);
-    event SendMoveResult(address player, bool hit);
+    event SendMoveResult(address player, bool hit, string coordinate);
 
     function join(bytes32 _gameId, bool _isNew, uint8[] memory _info) public{
         
@@ -219,8 +219,14 @@ contract Game {
 
                 if(_b == _trueBoard){
                     string memory _r=_hit?"-1":"-0";
-
                     matches[i].moves.push(string(abi.encodePacked(matches[i].lastMove, _r)));
+                    
+                    if(msg.sender==matches[i].p1){
+                        emit SendMoveResult(matches[i].p2, _hit, matches[i].lastMove);
+                    }else{
+                        emit SendMoveResult(matches[i].p1, _hit, matches[i].lastMove);
+                    }
+
                     // chiama la funzione checkWin e richiedi la board da controllare
                     if(checkWin(matches[i])){
                         emit SendRequestBoard(msg.sender);
@@ -229,12 +235,6 @@ contract Game {
                         // altrimenti emetti l'evento cambia turno
                         emit SendTurnAdvice(msg.sender);
                         matches[i].turn ? matches[i].turn=false : matches[i].turn=true; //meglio riuscire a toglierla
-                    }
-
-                    if(msg.sender==matches[i].p1){
-                        emit SendMoveResult(matches[i].p2, _hit);
-                    }else{
-                        emit SendMoveResult(matches[i].p1, _hit);
                     }
                         
                     return;

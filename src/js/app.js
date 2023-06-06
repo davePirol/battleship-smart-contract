@@ -215,7 +215,7 @@ App = {
       $('#gameIDreg').text(result[0]);
       $('#nShips').val(parseInt(result[2], 16));
       $('#tableWidth').val(parseInt(result[1], 16));
-      if(parseInt(result[5], 16) > -1){
+      if(web3Utils.toBN(result[5]).toNumber() > -1){
         $('#registrationAmount').val(parseInt(result[5], 16));
         $('#registrationAmount').attr('disabled', true);
       }    
@@ -282,11 +282,11 @@ App = {
       instance.SendMovesAdvice({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
           return error(err);
-        }
-        
-        const data=result;
-        console.log(data);
-        if(data.args.player==otherWeb3.eth.accounts[0]){
+        }        
+        const data=result;        
+        if(data.event=="SendMovesAdvice" && data.args.player==otherWeb3.eth.accounts[0]){
+          
+          console.log(data);
           
           var idToCheck=data.args.move;
           if($('#'+idToCheck).attr('class')=='hit')
@@ -299,20 +299,18 @@ App = {
           if(gameId!=""){
             console.log("call to checkMErkleProof");
             const sibilings=App.getSibilings(idToCheck);
-            App.battleshipInstance.checkMerkleProof.call(gameId, sibilings, hit).then(function(result){
-              console.log(result);
-              if(result){
-                $('#a'+idToCheck).attr('class', 'hit');
-                $('#resultMove').text('hit');
-              }else{
-                $('#a'+idToCheck).attr('class', 'miss');
-                $('#resultMove').text('miss');
-              }
-              $('#sendMove').attr('disabled', true);
-              
-            }).catch(function(error) {
-              console.log(error);
-            });;   
+            otherWeb3.eth.getAccounts(function(error, accounts) {
+              if (error) { console.log(error); }
+              var account = accounts[0];
+              App.contracts.Battleship.deployed().then(function (instance) {
+                return instance.checkMerkleProof(gameId, sibilings, hit,{from: account});
+              }).then(function(result) {
+                console.log(result);
+                $('#sendMove').attr('disabled', true);
+              }).catch(function(err) {
+                console.log(err.message);
+              });
+            });  
           }     
         }
       });
@@ -320,13 +318,68 @@ App = {
         if (err) {
           return error(err);
         }
-        console.log(result);
-        if(result.args.player==otherWeb3.eth.accounts[0]){
+        const data=result;
+        if(data.event=="SendTurnAdvice"){
+          console.log(data);
+          if(data.args.player==otherWeb3.eth.accounts[0]){
+            $('#sendMove').attr('disabled', false);
+            $('#advice').text("It's your turn: shoot!");
+          }else{
+            $('#sendMove').attr('disabled', true);
+            $('#advice').text("Wait for your turn: keep calm!");
+          }
+        }
+      });
+      instance.SendMoveResult({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }
+        const data=result;
+        if(data.event=="SendMoveResult" && result.args.player==otherWeb3.eth.accounts[0]){
+          console.log(data);
+          if(data.args.hit){
+            $('#a'+data.args.coordinate).attr('class', 'hit');
+            $('#resultMove').text('hit');
+          }else{
+            $('#a'+data.args.coordinate).attr('class', 'miss');
+            $('#resultMove').text('miss');
+          }
           $('#sendMove').attr('disabled', false);
           $('#advice').text("It's your turn: shoot!");
         }else{
           $('#sendMove').attr('disabled', true);
           $('#advice').text("Wait for your turn: keep calm!");
+        }
+      });
+      instance.SendRequestBoard({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }
+        const data=result;
+        console.log(data);
+        if(data.event=="SendRequestBoard" && result.args.player==otherWeb3.eth.accounts[0]){
+          /*if(data.args.hit){
+            $('#a'+idToCheck).attr('class', 'hit');
+            $('#resultMove').text('hit');
+          }else{
+            $('#a'+idToCheck).attr('class', 'miss');
+            $('#resultMove').text('miss');
+          }
+          $('#sendMove').attr('disabled', false);
+          $('#advice').text("It's your turn: shoot!");
+        */}/*else{
+          $('#sendMove').attr('disabled', true);
+          $('#advice').text("Wait for your turn: keep calm!");
+        }*/
+      });
+      instance.SendWrongMove({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }
+        const data=result;
+        console.log(data);
+        if(data.event=="SendWrongMove" && result.args.player==otherWeb3.eth.accounts[0]){
+          
         }
       });
     });
@@ -471,64 +524,8 @@ function hashBoard(){
   for(var i=0; i<n; i++){
     var r=Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
     random.push(r);
-
-    var hashed='0x'+keccak_256(""+values[i]+random[i]);
-    temp.push(hashed);
-  }
-
-  const leafNodes = temp;
-  const tree = []; // Copy the leaf nodes to the first level of the tree
-  tree.push([...leafNodes]);
-
-  let level = 0;
-  let numNodes = values.length;
-
-  // Construct the Merkle tree level by level
-  while (numNodes > 1) {
-    const levelNodes = [];
-
-    // Hash pairs of nodes from the previous level
-    for (let i = 0; i < numNodes; i += 2) {
-      const left = tree[0][i];
-      const right = tree[0][i + 1];
-      const parent = '0x'+keccak_256(""+left+right);
-      levelNodes.push(parent);
-    }
-    
-    tree.unshift([...levelNodes]);
-    level++;
-    numNodes = levelNodes.length;
-  }
-
-  // Flatten the tree
-  const flattenedTree = tree.flat();
-  App.sibilings=flattenedTree;
-  console.log(flattenedTree[0]);
-  return flattenedTree[0];
-}
-
-function hashBoard2(){
-  var table=document.getElementById("gameBoard");
-  var n=Math.pow(parseInt($('#tableWidth').val()), 2);
-  var random=[];
-  var values=[];
-
-  for (var i = 1, row; row = table.rows[i]; i++) {
-    for (var j = 1, col; col = row.cells[j]; j++) {
-      if(col.firstChild.getAttribute("class") == 'hit')
-        values.push(1);
-      else
-        values.push(0);
-    }  
-  }
-
-  var temp=[];
-
-  for(var i=0; i<n; i++){
-    var r=Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
-    random.push(r);
     let toHash=""+values[i]+random[i];
-    var hashed=web3.utils.soliditySha3({type:'string', value: toHash});
+    var hashed = web3Utils.soliditySha3({type:'string', value: toHash});
     temp.push(hashed);
   }
 
@@ -556,7 +553,7 @@ function hashBoard2(){
       // Concatenate the two bytes32 values as hexadecimal strings
       const toHash = '0x' + lWithoutPrefix + rWithoutPrefix;
 
-      const parent = web3.utils.soliditySha3(toHash);
+      const parent = web3Utils.soliditySha3(toHash);
       levelNodes.push(parent);
     }
     
