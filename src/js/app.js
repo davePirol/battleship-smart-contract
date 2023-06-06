@@ -4,6 +4,7 @@ App = {
   infos: null,
   rand:null,
   sibilings:[],
+  battleshipInstance:null,
   
 
   init: async function() {
@@ -19,13 +20,13 @@ App = {
         console.log("User denied account access");
       }
     }
-    else if(window.web3){
-      App.web3Provider = window.web3.currentProvider;
+    else if(window.otherWeb3){
+      App.web3Provider = window.otherWeb3.currentProvider;
     }
     else{
       App.web3Provider = new Web3.provider.HttpProvider("http://localhost:7545");
     }
-    web3 = new Web3(App.web3Provider);
+    otherWeb3 = new Web3(App.web3Provider);
     
     return App.initContract();
   },
@@ -35,9 +36,15 @@ App = {
       var BattleshipArtifact = data;
       App.contracts.Battleship = TruffleContract(BattleshipArtifact);
       App.contracts.Battleship.setProvider(App.web3Provider);
-    }).done(function() {
+
+      App.contracts.Battleship.deployed().then(function(instance) {
+        App.battleshipInstance = instance;
+        App.listenForEvents();
+      });
+    });/*.done(function() {
+      App.battleshipInstance = instance;
       App.listenForEvents(); // Call listenForEvents here
-    });;    
+    });*/    
 
     return App.bindEvents();
   },
@@ -57,24 +64,13 @@ App = {
     let tableWidth=$('#tableWidth').val();
     var arr = [nShips, tableWidth];
     event.preventDefault();
-    web3.eth.getAccounts(function(error, accounts) {
+    otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance){
         return instance.join(0, true, arr, {from: account});
       }).then(function(result){
-        var newGameId=result.logs[0].args.gameId;
-        console.log(result.logs[0].args.gameId);
-        
-        if (newGameId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-
-          $('#gameIDreg').text(newGameId);
-          $('#chooseSize').attr('hidden', true);
-          $('#registration').attr('hidden', false);
-
-        }else{
-          $('toastNewGameError').show();
-        }        
+        return;
       }).catch(function(err){
         console.log(err);
       });
@@ -86,18 +82,15 @@ App = {
     console.log(gameId);
     event.preventDefault();
 
-    web3.eth.getAccounts(function(error, accounts) {
+    otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance){
         return instance.join(gameId, false, [], {from: account});
       }).then(function(result){
-        var newGameId=result.logs[0].args.gameId
-        $('#gameIDreg').text(newGameId);
         $('#chooseSize').attr('hidden', true);
         $('#registration').attr('hidden', false);
-        return App.getInfo();
-      }).catch(function(err){
+ì      }).catch(function(err){
         console.log(err);
       });
     });
@@ -105,7 +98,7 @@ App = {
 
   joinRandomGame: function(){
     event.preventDefault();
-    web3.eth.getAccounts(function(error, accounts) {
+    otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance){
@@ -118,14 +111,6 @@ App = {
           $('#gameIDreg').text(newGameId);
           $('#chooseSize').attr('hidden', true);
           $('#registration').attr('hidden', false);
-          
-          var arr=App.getInfo();
-          $('#nShips').val(parseInt(arr[2], 16));
-          $('#tableWidth').val(parseInt(arr[1], 16));
-          if(arr[5] > -1){
-            $('#registrationAmount').val(parseInt(arr[1], 16));
-            $('#registrationAmount').attr('disabled', true);
-          }
 
         }else{
           $('#toastJoinError').toast('show');
@@ -158,7 +143,7 @@ App = {
     var gameId=$('#gameIDreg').text();
     var amount=$('#registrationAmount').val();
     event.preventDefault();
-    web3.eth.getAccounts(function(error, accounts) {
+    otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance) {
@@ -181,7 +166,7 @@ App = {
   pay: function(event) {
     var gameId=$('#gameIDreg').text();
     event.preventDefault();
-    web3.eth.getAccounts(function(error, accounts) {
+    otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance) {
@@ -202,7 +187,7 @@ App = {
     var gameId=$('#gameIDreg').text();
     var hashedBoard=hashBoard();
     console.log(hashedBoard); 
-    web3.eth.getAccounts(function(error, accounts) {
+    otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance){
@@ -212,7 +197,8 @@ App = {
           var n=$('#tableWidth').val();
           setAdversaryTable(n);
           $('#enemyBoard').attr("hidden", false);
-
+          $('#saveBoard').attr("hidden", true);
+          $('#sendMove').attr("disabled", true);
       }).catch(function(err){
         console.log(err.message);
       });
@@ -225,7 +211,8 @@ App = {
     App.contracts.Battleship.deployed().then(function (instance){
       return instance.getInformations.call(gameId);
     }).then(function(result){
-      App.infos = result;  
+      App.infos = result;
+      $('#gameIDreg').text(result[0]);
       $('#nShips').val(parseInt(result[2], 16));
       $('#tableWidth').val(parseInt(result[1], 16));
       if(parseInt(result[5], 16) > -1){
@@ -251,7 +238,7 @@ App = {
     var coordinate=id;
 
     event.preventDefault();
-    web3.eth.getAccounts(function(error, accounts) {
+    otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance) {
@@ -271,6 +258,20 @@ App = {
         if (err) {
           return error(err);
         }
+        const data=result;
+        var newGameId=data.args.gameId;
+        console.log(data);
+        if(data.event=="SendNewGameCreate" && data.args.player==otherWeb3.eth.accounts[0]){
+          if (newGameId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+            $('#gameIDreg').text(newGameId);
+            $('#chooseSize').attr('hidden', true);
+            $('#registration').attr('hidden', false);
+            App.getInfo();
+          }else{
+            $('toastNewGameError').show();
+          }    
+        }    
+
       });
       instance.SendRequestAmount({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
@@ -282,44 +283,50 @@ App = {
         if (err) {
           return error(err);
         }
-        console.log(result.args);
-        if(result.args.player==web3.eth.accounts[0]){
-          // controlla le coordinate e dai la merkle sibilings
-          // result.arg.move
-          var idToCheck=result.arg.move.substring(1);
+        
+        const data=result;
+        console.log(data);
+        if(data.args.player==otherWeb3.eth.accounts[0]){
+          
+          var idToCheck=data.args.move;
           if($('#'+idToCheck).attr('class')=='hit')
             var hit=true;
           else
             var hit=false;
 
           var gameId=$('#gameIDreg').text();
-
-          App.contracts.Battleship.deployed().then(function (instance){
-            var sibilings=App.getSibilings();
-            return instance.checkMerkleProof.call(gameId, sibilings, hit);
-          }).then(function(result){
-            console.log(result);
-            if(result){
-              $('#a'+idToCheck).attr('class', 'hit');
-              $('#resultMove').text('hit');
-            }else{
-              $('#a'+idToCheck).attr('class', 'miss');
-              $('#resultMove').text('miss');
-            }
-            $('#sendMove').attr('disabled', true);            
-          }).catch(function(err){
-            console.log(err.message);
-          });
+        
+          if(gameId!=""){
+            console.log("call to checkMErkleProof");
+            const sibilings=App.getSibilings(idToCheck);
+            App.battleshipInstance.checkMerkleProof.call(gameId, sibilings, hit).then(function(result){
+              console.log(result);
+              if(result){
+                $('#a'+idToCheck).attr('class', 'hit');
+                $('#resultMove').text('hit');
+              }else{
+                $('#a'+idToCheck).attr('class', 'miss');
+                $('#resultMove').text('miss');
+              }
+              $('#sendMove').attr('disabled', true);
+              
+            }).catch(function(error) {
+              console.log(error);
+            });;   
+          }     
         }
       });
       instance.SendTurnAdvice({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
           return error(err);
         }
-        console.log(result.args);
-        if(result.args.player==web3.eth.accounts[0]){
+        console.log(result);
+        if(result.args.player==otherWeb3.eth.accounts[0]){
           $('#sendMove').attr('disabled', false);
           $('#advice').text("It's your turn: shoot!");
+        }else{
+          $('#sendMove').attr('disabled', true);
+          $('#advice').text("Wait for your turn: keep calm!");
         }
       });
     });
@@ -329,7 +336,6 @@ App = {
     const proof = [];
     const treeHeight = Math.log2(App.sibilings.length);
     
-    // -1 is because the id start from 1-1
     var row = parseInt($('#tableWidth').val()) - parseInt(id.split("-")[0]);
     var col = parseInt($('#tableWidth').val()) - parseInt(id.split("-")[1]);
 
@@ -370,7 +376,7 @@ App = {
   //standard template for transaction with address
   handleAdopt: function(event) {
     event.preventDefault();
-    web3.eth.getAccounts(function(error, accounts) {
+    otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance) {
@@ -451,10 +457,61 @@ function hashBoard(){
   var random=[];
   var values=[];
 
+  for (var i = 1, row; row = table.rows[i]; i++) {
+    for (var j = 1, col; col = row.cells[j]; j++) {
+      if(col.firstChild.getAttribute("class") == 'hit')
+        values.push(1);
+      else
+        values.push(0);
+    }  
+  }
+
+  var temp=[];
+
   for(var i=0; i<n; i++){
     var r=Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
     random.push(r);
+
+    var hashed='0x'+keccak_256(""+values[i]+random[i]);
+    temp.push(hashed);
   }
+
+  const leafNodes = temp;
+  const tree = []; // Copy the leaf nodes to the first level of the tree
+  tree.push([...leafNodes]);
+
+  let level = 0;
+  let numNodes = values.length;
+
+  // Construct the Merkle tree level by level
+  while (numNodes > 1) {
+    const levelNodes = [];
+
+    // Hash pairs of nodes from the previous level
+    for (let i = 0; i < numNodes; i += 2) {
+      const left = tree[0][i];
+      const right = tree[0][i + 1];
+      const parent = '0x'+keccak_256(""+left+right);
+      levelNodes.push(parent);
+    }
+    
+    tree.unshift([...levelNodes]);
+    level++;
+    numNodes = levelNodes.length;
+  }
+
+  // Flatten the tree
+  const flattenedTree = tree.flat();
+  App.sibilings=flattenedTree;
+  console.log(flattenedTree[0]);
+  return flattenedTree[0];
+}
+
+function hashBoard2(){
+  var table=document.getElementById("gameBoard");
+  var n=Math.pow(parseInt($('#tableWidth').val()), 2);
+  var random=[];
+  var values=[];
 
   for (var i = 1, row; row = table.rows[i]; i++) {
     for (var j = 1, col; col = row.cells[j]; j++) {
@@ -468,28 +525,49 @@ function hashBoard(){
   var temp=[];
 
   for(var i=0; i<n; i++){
-    var toHash=""+values[i]+random[i];
-    var hashed=keccak256(toHash).toString('hex');
+    var r=Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+    random.push(r);
+    let toHash=""+values[i]+random[i];
+    var hashed=web3.utils.soliditySha3({type:'string', value: toHash});
     temp.push(hashed);
   }
-  var _sib=[];
-  while(temp.length!=1){
-    var first=temp.shift();
-    var second=temp.shift();
-    var toHash=""+first+second;
-    var hashed=keccak256(toHash).toString('hex');
-    temp.push(hashed);
-    _sib.push(first);
-    _sib.push(second);
+
+  const leafNodes = temp;
+  const tree = []; // Copy the leaf nodes to the first level of the tree
+  tree.push([...leafNodes]);
+
+  let level = 0;
+  let numNodes = values.length;
+
+  // Construct the Merkle tree level by level
+  while (numNodes > 1) {
+    const levelNodes = [];
+
+    // Hash pairs of nodes from the previous level
+    for (let i = 0; i < numNodes; i += 2) {
+      const left = tree[0][i];
+      const right = tree[0][i + 1];
+      //const toHash=left+right;
+
+      // Remove the "0x" prefix from the bytes32 values
+      const lWithoutPrefix = left.slice(2);
+      const rWithoutPrefix = right.slice(2);
+
+      // Concatenate the two bytes32 values as hexadecimal strings
+      const toHash = '0x' + lWithoutPrefix + rWithoutPrefix;
+
+      const parent = web3.utils.soliditySha3(toHash);
+      levelNodes.push(parent);
+    }
+    
+    tree.unshift([...levelNodes]);
+    level++;
+    numNodes = levelNodes.length;
   }
-  App.rand=random;
-  _sib.push(temp[0]); //insert the root
-  
-  //divide in two the array, the second part is reversed to have a representation of a tree 
-  // take the first x^2 where x is the table width
-  _f=_sib.slice(0, n);
-  _s=_sib.slice(n, _sib.length);
-  _s.reverse();
-  App.sibilings=_s.concat(_f);
-  return temp[0];
+
+  // Flatten the tree
+  const flattenedTree = tree.flat();
+  App.sibilings=flattenedTree;
+  console.log(flattenedTree[0]);
+  return flattenedTree[0];
 }

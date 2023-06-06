@@ -8,14 +8,14 @@ contract("Game", (accounts) => {
     battleship = await Adoption.deployed();
   });
 
-  describe("create a new game", async () => {
-    before("create a new game from accounts[0]", async () => {
-        let x = await battleship.join(0, true, new Uint8Array([nShips, tableWidth]), { from: accounts[0] });
-        expectGameId = bytes32ToNumString(x);
+  describe("check merkle proof", async () => {
+    before("send merkle proof from accounts[1]", async () => {
+        let x = await battleship.checkMerkleProof.call("0xc65a7bb8d6351c1cf70c95a316cc6a92839c986682d98bc35f958f4883f9d2a8",["a", "b", "c"], true)
+        expectGameId = x;
     });
   });
 
-  it("A new game is being created: ", async () => {
+  it("Check merkle proof: ", async () => {
     let id="044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d";
     assert.equal(id, expectGameId, "The id of game is: ");
   });

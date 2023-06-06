@@ -22,7 +22,7 @@ contract Game {
     }
 
     GameMatch[] public matches;
-    event SendNewGameCreate(address player, bytes32 gameId, uint ships, uint tableSize);
+    event SendNewGameCreate(address player, bytes32 gameId);
     event SendRequestAmount(address player, int amount);    //tell to the player to put the money to start play
     event SendTurnAdvice(address player);   //tell to the player that is his/her turn
     event SendMovesAdvice(address player, string move);  //tell to the player that have been shoot
@@ -39,11 +39,11 @@ contract Game {
                 if(matches[i].gameId == _gameId){
                     if(matches[i].p2 == address(0)){
                         matches[i].p2 = msg.sender;
-                        emit SendNewGameCreate(msg.sender, matches[i].gameId, matches[i].ships, matches[i].tableSize);
+                        emit SendNewGameCreate(msg.sender, matches[i].gameId);
                         return;
                     }
                     else{
-                        emit SendNewGameCreate(msg.sender, 0, 0, 0);
+                        emit SendNewGameCreate(msg.sender, 0);
                         return;
                     }
                 }
@@ -55,7 +55,7 @@ contract Game {
             bytes32 newGameId = keccak256(abi.encode(matches.length));
             string[] memory _moves = new string[](0);
             matches.push(GameMatch(newGameId, _info[1], _info[0], msg.sender, address(0), -1, 0, true, 0, 0, "",  _moves));
-            emit SendNewGameCreate(msg.sender, newGameId, _info[0], _info[1]);
+            emit SendNewGameCreate(msg.sender, newGameId);
             return;
         }
 
@@ -63,12 +63,12 @@ contract Game {
         for(uint8 i=0; i<matches.length; i++){
             if(matches[i].p2 != address(0)){
                 matches[i].p2=msg.sender;
-                emit SendNewGameCreate(msg.sender, matches[i].gameId, matches[i].ships, matches[i].tableSize);
+                emit SendNewGameCreate(msg.sender, matches[i].gameId);
                 return;
             }
         }
 
-        emit SendNewGameCreate(msg.sender, 0, 0, 0);
+        emit SendNewGameCreate(msg.sender, 0);
     }
 
     /**
@@ -181,6 +181,9 @@ contract Game {
 
     function checkMerkleProof(bytes32 _gameId, bytes32[] memory _sibilings, bool _hit) public {
         
+        string[] memory _moves = new string[](0); 
+        matches.push(GameMatch(0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563, 2, 1, 0x178F83E62E51b08EfaFfc83C2080245D74D97329, 0x9889dFD1C101db6D13f19E207c2B8195D4f4A039, 1, 2, true, 0xb2bb9cb255eaac58d9238122788ddcb76b8380e3945fe63bea077afc14366f6d, 0xbecf782b589e98afc6be94679a4055c320524da7dbe57f1eb482b4c81ab342f0, "2-1", _moves));
+
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 bytes32 _trueBoard;
@@ -190,6 +193,7 @@ contract Game {
                 else{
                     _trueBoard=matches[i].b2;
                 }
+                _trueBoard=0x8E00F33D99A09497EEF3BC03747536039692821E181C056082EEC3A399723874;
         
                 
                 // control if i have to switch the first or the second element of the sibilings array
@@ -198,7 +202,7 @@ contract Game {
                 // in quel caso dovrei avere il valore randomico che compone l'hash della foglia.
                 // Ma così facendo rovino la segretezza del nodo
                 uint row = stringToUint(splitString(matches[i].lastMove, "-")[0]) - 1;
-                uint col = stringToUint(splitString(matches[i].lastMove, "-")[1]) - 1;
+                uint col = stringToUint(splitString(matches[i].lastMove, "-")[0]) - 1;
                 uint toCheck = row*matches[i].tableSize + col;
                 
                 if(toCheck%2!=0){
@@ -210,19 +214,30 @@ contract Game {
                 bytes32 _b=_sibilings[0];
                 for(uint j=1; j < _sibilings.length; j++){
                     // compute the merkle proof
+                    
+                    bytes memory _temp = new bytes(64);
                     bytes32 _b1=_b;
                     bytes32 _b2=_sibilings[j];
-                    _b=keccak256(abi.encodePacked(_b1, _b2));          
+                    assembly {
+                        mstore(add(_temp, 32), _b1)
+                        mstore(add(_temp, 64), _b2)
+                        _b := keccak256(0x00, 0x40)
+                    }            
                 }
 
                 // confronta il risultato con _b se ok allora memorizza la mossa valida e return true
 
                 if(_b == _trueBoard){
+                //if(true){
                     string memory _r=_hit?"-1":"-0";
 
                     matches[i].moves.push(string(abi.encodePacked(matches[i].lastMove, _r)));
+                    matches[i].moves.push(string(abi.encodePacked(matches[i].lastMove, _r)));
+                    matches[i].moves.push(string(abi.encodePacked(matches[i].lastMove, _r)));
+
                     // chiama la funzione checkWin e richiedi la board da controllare
                     if(checkWin(matches[i])){
+                    //if(false){
                         emit SendRequestBoard(msg.sender);
                         
                     }else{
@@ -242,12 +257,114 @@ contract Game {
                 else{   
                     emit SendWrongMove(msg.sender);             
                     return;
-                }                
+                }
+                
             }
         }
     }
 
-    function checkWin(GameMatch memory g) internal pure returns(bool){
+    function bildMerkleProof(string[] memory _sibilings) public {        
+        
+        string memory _trueBoard="0x0dcf1bf1019bb69b95c52c5c0f8abaac86095bcdb6202bc157cb58d1ea923d73";
+        string memory lastMove="1-1";
+                
+        uint row = stringToUint(splitString(lastMove, "-")[0]) - 1;
+        uint col = stringToUint(splitString(lastMove, "-")[1]) - 1;
+        uint toCheck = row*2 + col;
+        
+        if(toCheck%2!=0){
+            string memory _t = _sibilings[0];
+            _sibilings[0] = _sibilings[1];
+            _sibilings[1] = _t;
+        }
+
+        string memory _b=_sibilings[0];
+        for(uint j=1; j < _sibilings.length; j++){
+            // compute the merkle proof            
+            //bytes memory _temp = new bytes(64);
+            string memory _b1=_b;
+            string memory _b2=_sibilings[j];
+            bytes32 hashed =keccak256(abi.encodePacked(_b1, _b2));          
+            _b=string(abi.encodePacked(hashed));
+        }
+
+        // confronta il risultato con _b se ok allora memorizza la mossa valida e return true
+        string memory result= _b;
+
+        if(keccak256(abi.encodePacked(_b))==keccak256(abi.encodePacked(_trueBoard)))
+            emit SendVictory(msg.sender);
+        else
+            emit SendWrongMove(msg.sender);             
+        return;
+    }
+
+    function bildMerkleProofBytes(bytes32[] memory _sibilings) public {        
+        
+        bytes32 _trueBoard=0x44dd0d62c6c7740ddac5ee28c9cb8d9b56ce2184f15bae4b4e26352cc8818ba9;
+        string memory lastMove="1-1";
+                
+        uint row = stringToUint(splitString(lastMove, "-")[0]) - 1;
+        uint col = stringToUint(splitString(lastMove, "-")[1]) - 1;
+        uint toCheck = row*2 + col;
+        
+        if(toCheck%2!=0){
+            bytes32 _t = _sibilings[0];
+            _sibilings[0] = _sibilings[1];
+            _sibilings[1] = _t;
+        }
+
+        bytes32 _b=_sibilings[0];
+        for(uint j=1; j < _sibilings.length; j++){
+            // compute the merkle proof            
+            //bytes memory _temp = new bytes(64);
+            bytes32 _b1=_b;
+            bytes32 _b2=_sibilings[j];
+            bytes32 hashed =keccak256(abi.encodePacked(_b1, _b2));          
+            _b=hashed;
+        }
+
+        // confronta il risultato con _b se ok allora memorizza la mossa valida e return true
+        bytes32 result= _b;
+
+        if(_b==_trueBoard)
+            emit SendVictory(msg.sender);
+        else
+            emit SendWrongMove(msg.sender);             
+        return;
+    }
+
+    function checkKeccack() public {        
+        
+        string memory _b1="ciao";
+        string memory _b2="mondo";
+        string memory _b3="ciaomondo";
+        bytes32 _b;
+        string memory concat= string(abi.encodePacked(_b1, _b2));
+        string memory concat2 = string(bytes.concat(bytes(_b1), bytes(_b2)));
+        bytes memory bites=abi.encode(_b3);
+        _b=keccak256(abi.encodePacked(_b1, _b2));
+        bytes32 _b1h=keccak256(abi.encodePacked(_b));
+        bytes32 _c=keccak256(abi.encodePacked(concat));
+        bytes32 _d=keccak256(abi.encodePacked(concat2));
+        bytes32 _e=keccak256(abi.encodePacked(_b3));
+
+        string memory _x1="0x053114fc35b3e71daa03cd29e60e92c5f18524f376f3a8b990bb84f502291f49";
+        string memory _x2="0x4e824bf4ef10beef46970aff33cf55479d80e44ea6ff5f5d9b82ec37a40e94fb";
+        //_b=keccak256(abi.encodePacked(_x1, _x2));
+
+        bytes32 hashed =keccak256(abi.encodePacked(_b1, _b2));    
+        string memory _bToString=string(abi.encodePacked(hashed));
+     
+        //string memory fuck=string(abi.encodePacked(keccak256(abi.encodePacked(_x1, _x2))));
+
+        // confronta il risultato con _b se ok allora memorizza la mossa valida e return true
+        bytes32 result= _b;
+          
+        emit SendWrongMove(msg.sender);             
+        return;
+    }
+
+    function checkWin(GameMatch memory g) public pure returns(bool){
         uint _shipToSink=g.ships*2; //because all ships have fixed length of two
         uint _shipSinked=0;
         if(g.turn){

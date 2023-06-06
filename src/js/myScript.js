@@ -36,11 +36,6 @@ var model = {
 
         if($('#a'+id).attr('class') != 'hit' && $('#a'+id).attr('class') != 'miss'){
             $('#a'+id).attr('class', 'redB');
-            $('#sendMove').attr('disabled', false);
-            
-        }
-        else{
-            $('#sendMove').attr('disabled', true);
         }
     }
 
