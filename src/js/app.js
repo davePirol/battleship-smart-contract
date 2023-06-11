@@ -277,7 +277,10 @@ App = {
         if (err) {
           return error(err);
         }
-        console.log(result);
+        const data=result;
+        if(data.event=="SendRequestAmount" && data.args.player==otherWeb3.eth.accounts[0]){
+          console.log(result);
+        }
       });
       instance.SendMovesAdvice({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
@@ -344,9 +347,6 @@ App = {
             $('#a'+data.args.coordinate).attr('class', 'miss');
             $('#resultMove').text('miss');
           }
-          $('#sendMove').attr('disabled', false);
-          $('#advice').text("It's your turn: shoot!");
-        }else{
           $('#sendMove').attr('disabled', true);
           $('#advice').text("Wait for your turn: keep calm!");
         }
@@ -375,11 +375,10 @@ App = {
       instance.SendWrongMove({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
           return error(err);
-        }
-        const data=result;
-        console.log(data);
+        }        
         if(data.event=="SendWrongMove" && result.args.player==otherWeb3.eth.accounts[0]){
-          
+          const data=result;
+          console.log(data);
         }
       });
     });

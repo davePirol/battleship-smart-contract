@@ -189,14 +189,9 @@ contract Game {
                 }
                 else{
                     _trueBoard=matches[i].b2;
-                }
-        
+                }        
                 
-                // control if i have to switch the first or the second element of the sibilings array
-                // questo problema è sorto perché la merkle proof non viene applicata nel migliore dei modi
-                // infatti dovrei computare l'hash della foglia di cui voglio sapere la prova, ma 
-                // in quel caso dovrei avere il valore randomico che compone l'hash della foglia.
-                // Ma così facendo rovino la segretezza del nodo
+               
                 uint row = stringToUint(splitString(matches[i].lastMove, "-")[0]) - 1;
                 uint col = stringToUint(splitString(matches[i].lastMove, "-")[1]) - 1;
                 uint toCheck = row*matches[i].tableSize + col;
@@ -234,7 +229,7 @@ contract Game {
                     }else{
                         // altrimenti emetti l'evento cambia turno
                         emit SendTurnAdvice(msg.sender);
-                        matches[i].turn ? matches[i].turn=false : matches[i].turn=true; //meglio riuscire a toglierla
+                        matches[i].turn ? matches[i].turn=false : matches[i].turn=true; 
                     }
                         
                     return;
