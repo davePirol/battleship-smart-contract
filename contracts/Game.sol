@@ -24,7 +24,7 @@ contract Game {
     GameMatch[] public matches;
     event SendNewGameCreate(address player, bytes32 gameId, uint ships, uint tableSize);
     event SendRequestAmount(address player, int amount);    //tell to the player to put the money to start play
-    event SendTurnAdvice(address player);   //tell to the player that is his/her turn
+    event SendTurnAdvice(address play, address wait);   //tell to the player that is his/her turn
     event SendMovesAdvice(address player, string move);  //tell to the player that have been shoot
     event SendRequestBoard(address player);   //tell to the player that have won
     event SendWrongMove(address player);    //tell to the player that is not a valid move
@@ -146,7 +146,7 @@ contract Game {
                     matches[i].b2=_hashedBoard;
                 }
                 matches[i].turn=true;
-                emit SendTurnAdvice(matches[i].p1);
+                emit SendTurnAdvice(matches[i].p1, matches[i].p2);
             }
         }
     }
@@ -159,7 +159,7 @@ contract Game {
                     matches[i].lastMove=_coordinate;
                     emit SendMovesAdvice(matches[i].p2, _coordinate);
                 }
-                else if(matches[i].p1==msg.sender && !matches[i].turn){
+                else if(matches[i].p2==msg.sender && !matches[i].turn){
                     matches[i].lastMove=_coordinate;
                     emit SendMovesAdvice(matches[i].p1, _coordinate);
                 }
@@ -179,7 +179,7 @@ contract Game {
         }
     }
 
-    function checkMerkleProof(bytes32 _gameId, bytes32[] memory _sibilings, bool _hit) public {
+    function checkMerkleProof(bytes32 _gameId, bytes32[] memory _sibilings, bool _hit, uint256 _leafIndex) public {
         
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
@@ -192,22 +192,27 @@ contract Game {
                 }        
                 
                
-                uint row = stringToUint(splitString(matches[i].lastMove, "-")[0]) - 1;
-                uint col = stringToUint(splitString(matches[i].lastMove, "-")[1]) - 1;
-                uint toCheck = row*matches[i].tableSize + col;
+                //uint row = stringToUint(splitString(matches[i].lastMove, "-")[0]) - 1;
+                //uint col = stringToUint(splitString(matches[i].lastMove, "-")[1]) - 1;
+                //uint toCheck = row*matches[i].tableSize + col;
                 
-                if(toCheck%2!=0){
-                    bytes32 _t = _sibilings[0];
-                    _sibilings[0] = _sibilings[1];
-                    _sibilings[1] = _t;
-                }
+                //if(toCheck%2!=0){
+                //    bytes32 _t = _sibilings[0];
+                //    _sibilings[0] = _sibilings[1];
+                //    _sibilings[1] = _t;
+                //}
 
                 bytes32 _b=_sibilings[0];
                 for(uint j=1; j < _sibilings.length; j++){
                     // compute the merkle proof
                     bytes32 _b1=_b;
                     bytes32 _b2=_sibilings[j];
-                    _b=keccak256(abi.encodePacked(_b1, _b2));          
+                    if(_leafIndex% 2 == 0)
+                        _b=keccak256(abi.encodePacked(_b1, _b2));
+                    else
+                        _b=keccak256(abi.encodePacked(_b2, _b1));
+
+                    _leafIndex = _leafIndex / 2;
                 }
 
                 // confronta il risultato con _b se ok allora memorizza la mossa valida e return true
@@ -215,10 +220,12 @@ contract Game {
                 if(_b == _trueBoard){
                     string memory _r=_hit?"-1":"-0";
                     matches[i].moves.push(string(abi.encodePacked(matches[i].lastMove, _r)));
-                    
+                    address _wait;
                     if(msg.sender==matches[i].p1){
+                        _wait=matches[i].p2;
                         emit SendMoveResult(matches[i].p2, _hit, matches[i].lastMove);
                     }else{
+                        _wait =matches[i].p1;
                         emit SendMoveResult(matches[i].p1, _hit, matches[i].lastMove);
                     }
 
@@ -228,7 +235,7 @@ contract Game {
                         
                     }else{
                         // altrimenti emetti l'evento cambia turno
-                        emit SendTurnAdvice(msg.sender);
+                        emit SendTurnAdvice(msg.sender, _wait);
                         matches[i].turn ? matches[i].turn=false : matches[i].turn=true; 
                     }
                         
