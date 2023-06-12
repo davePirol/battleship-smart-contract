@@ -5,6 +5,7 @@ App = {
   rand:null,
   sibilings:[],
   battleshipInstance:null,
+  lastMove:null,
   
 
   init: async function() {
@@ -225,6 +226,9 @@ App = {
   },
 
   sendMove: function(){
+    $('#sendMove').attr('disabled', true);
+    $('#advice').text("Wait for reply: be patient");
+    
     var gameId=$('#gameIDreg').text();
     var idRaw;
     var table=document.getElementById("adversaryBoard");
@@ -247,6 +251,8 @@ App = {
         console.log(result);
       }).catch(function(err) {
         console.log(err.message);
+        $('#sendMove').attr('disabled', false);
+        $('#advice').text("An error is occured: shoot again!");
       });
     });
 
@@ -260,8 +266,8 @@ App = {
         }
         const data=result;
         var newGameId=data.args.gameId;
-        console.log(data);
         if(data.event=="SendNewGameCreate" && data.args.player==otherWeb3.eth.accounts[0]){
+          console.log(data);
           if (newGameId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
             $('#gameIDreg').text(newGameId);
             $('#chooseSize').attr('hidden', true);
@@ -300,8 +306,12 @@ App = {
           var gameId=$('#gameIDreg').text();
         
           if(gameId!=""){
-            console.log("call to checkMErkleProof");
+            console.log("call to checkMerkleProof");
+            
             const sibilings=App.getSibilings(idToCheck);
+            App.getLastMove();
+            
+
             otherWeb3.eth.getAccounts(function(error, accounts) {
               if (error) { console.log(error); }
               var account = accounts[0];
@@ -323,14 +333,15 @@ App = {
         }
         const data=result;
         if(data.event=="SendTurnAdvice"){
-          console.log(data);
-          if(data.args.player==otherWeb3.eth.accounts[0]){
+          if(data.args.play==otherWeb3.eth.accounts[0]){
+            console.log(data);          
             $('#sendMove').attr('disabled', false);
-            $('#advice').text("It's your turn: shoot!");
-          }else{
+            $('#advice').text("It's your turn: shoot!");  
+          }else if(data.args.wait==otherWeb3.eth.accounts[0]){
+            console.log(data);          
             $('#sendMove').attr('disabled', true);
-            $('#advice').text("Wait for your turn: keep calm!");
-          }
+            $('#advice').text("Keep calm: wait your turn!");  
+          }        
         }
       });
       instance.SendMoveResult({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
@@ -376,6 +387,7 @@ App = {
         if (err) {
           return error(err);
         }        
+        console.log(data);
         if(data.event=="SendWrongMove" && result.args.player==otherWeb3.eth.accounts[0]){
           const data=result;
           console.log(data);
@@ -411,6 +423,17 @@ App = {
     proof.pop();
 
     return proof;
+  },
+
+  getLastMove: function(){
+    var gameId=$('#gameIDreg').text();
+    App.contracts.Battleship.deployed().then(function (instance){
+      return instance.getLastMoves.call(gameId);
+    }).then(function(result){
+      App.lastMove=result;
+    }).catch(function(err){
+      console.log(err.message);
+    });
   },
 
   //standard template for call
