@@ -28,7 +28,7 @@ contract Game {
     event SendMovesAdvice(address player, string move);  //tell to the player that have been shoot
     event SendRequestBoard(address player);   //tell to the player that have won
     event SendWrongMove(address player);    //tell to the player that is not a valid move
-    event SendVictory(address player);
+    event SendVictory(address winner, address loser);
     event SendMoveResult(address player, bool hit, string coordinate);
 
     function join(bytes32 _gameId, bool _isNew, uint8[] memory _info) public{
@@ -229,9 +229,9 @@ contract Game {
                         emit SendMoveResult(matches[i].p1, _hit, matches[i].lastMove);
                     }
 
-                    // chiama la funzione checkWin e richiedi la board da controllare
+                    // chiama la funzione checkWin e richiedi la board da controllare all'altro giocatore
                     if(checkWin(matches[i])){
-                        emit SendRequestBoard(msg.sender);
+                        emit SendRequestBoard(_wait);
                         
                     }else{
                         // altrimenti emetti l'evento cambia turno
@@ -275,21 +275,24 @@ contract Game {
         }
     }
 
-    function checkBoard(bytes32 _gameId, string[][] memory _board) public payable returns(bool){
-        bytes1 _one = 0x01;        
+    function checkBoard(bytes32 _gameId, int[][] memory _board) public payable returns(bool){        
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 //controllo sovrapposizioni navi
                 uint8 count=0;
                 for(uint q = 0; q < matches[i].tableSize; q++){
                     for(uint k = 0; k < matches[i].tableSize; k++){
-                        if(bytes(_board[q][k])[0] == _one) //there is a ship
+                        if(_board[q][k] == 1) //there is a ship
                             count++;
                     }
                 }
 
                 if(count == matches[i].ships){ //there aren't ship overlapped
                     payable(msg.sender).transfer(address(this).balance);
+                    if(msg.sender == matches[i].p1)
+                        emit SendVictory(msg.sender, matches[i].p2);
+                    else
+                        emit SendVictory(matches[i].p2, msg.sender);
                 }
             }
         }

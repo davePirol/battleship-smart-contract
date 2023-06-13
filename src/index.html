@@ -10,6 +10,7 @@
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
     <link href="css/main.css" rel="stylesheet">
+    <link href="css/animation.css" rel="stylesheet">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -81,215 +82,120 @@
           <h2>Position your ships: <span id="numShipsBoard"></span> ships of two cells length</h2>
           <div id="messageArea"></div>
             <table id="gameBoard">
-
-              
-
             </table>
             <button type="button" class="btn btn-primary" id="saveBoard">SAVE BOARD</button>
         </div>
-      </div>
+      
 
-      <div id="enemyBoard" hidden>
-        <h2>Result of your move: <span id="resultMove"></span></h2>
-        <div id="messageArea"><span id="advice"></span></div>
-          <table id="adversaryBoard">            
-            
-          </table>
-          <button type="button" class="btn btn-primary" id="sendMove" disabled>SEND MOVE</button>
+        <div id="enemyBoard" hidden>
+          <h2>Result of your move: <span id="resultMove"></span></h2>
+          <div id="messageArea"><span id="advice"></span></div>
+            <table id="adversaryBoard">            
+              
+            </table>
+            <button type="button" class="btn btn-primary" id="sendMove" disabled>SEND MOVE</button>
+        </div>
+
+        <div id="win" hidden>        
+          <div id="messageArea"><h2 class="animate-charcter">YOU WIN!!!</h2></div>
+        </div>
+
+        <div id="lose" hidden>        
+          <div id="messageArea">
+            <div class="content">
+              <h2>YOU LOSE...</h2>
+              <h2>YOU LOSE...</h2>
+            </div>
+          </div>          
+        </div>
       </div>
     </div>
 
-        <!-- solo per prova 
-        <tr>
-          <th class="numbers"></th>
-          <th class="numbers">0</th>
-          <th class="numbers">1</th>
-        </tr>      
-        <tr>
-          <th class="letters">A</th>
-          <td><div id="00"></div></td>
-          <td><div id="01"></div></td>              
-        </tr>
-          <tr>
-          <th class="letters">B</th>
-          <td><div id="10"></div></td>
-          <td><div id="11"></div></td>
-        </tr>-->
 
-
-      <div id="board_old" hidden>
-        <div id="messageArea"></div>
-        <table id="gameBoard_old">
-          <tr>
-            <th class="numbers"></th>
-            <th class="numbers">0</th>
-            <th class="numbers">1</th>
-            <th class="numbers">2</th>
-            <th class="numbers">3</th>
-            <th class="numbers">4</th>
-            <th class="numbers">5</th>
-            <th class="numbers">6</th>
-          </tr>
-    
-          <tr>
-            <th class="letters">A</th>
-            <td><div id="0.0"></div></td>
-            <td><div id="01"></div></td>
-            <td><div id="02"></div></td>
-            <td><div id="03"></div></td>
-            <td><div id="04"></div></td>
-            <td><div id="05"></div></td>
-            <td><div id="06"></div></td>
-          </tr>
-            <tr>
-            <th class="letters">B</th>
-            <td><div id="10"></div></td>
-            <td><div id="11"></div></td>
-            <td><div id="12"></div></td>
-            <td><div id="13"></div></td>
-            <td><div id="14"></div></td>
-            <td><div id="15"></div></td>
-            <td><div id="16"></div></td>
-          <tr>
-            <th class="letters">C</th>
-            <td><div id="20"></div></td>
-            <td><div id="21"></div></td>
-            <td><div id="22"></div></td>
-            <td><div id="23"></div></td>
-            <td><div id="24"></div></td>
-            <td><div id="25"></div></td>
-            <td><div id="26"></div></td>
-          </tr>
-            </tr>
-            <tr>
-            <th class="letters">D</th>
-            <td><div id="30"></div></td>
-            <td><div id="31"></div></td>
-            <td><div id="32"></div></td>
-            <td><div id="33"></div></td>
-            <td><div id="34"></div></td>
-            <td><div id="35"></div></td>
-            <td><div id="36"></div></td>
-          </tr>
-          <tr>
-            <th class="letters">E</td>
-            <td><div id="40"></div></td>
-            <td><div id="41"></div></td>
-            <td><div id="42"></div></td>
-            <td><div id="43"></div></td>
-            <td><div id="44"></div></td>
-            <td><div id="45"></div></td>
-            <td><div id="46"></div></td>
-          </tr>
-          <tr>
-            <th class="letters">F</td>
-            <td><div id="50"></div></td>
-            <td><div id="51"></div></td>
-            <td><div id="52"></div></td>
-            <td><div id="53"></div></td>
-            <td><div id="54"></div></td>
-            <td><div id="55"></div></td>
-            <td><div id="56"></div></td>
-          </tr>
-          <tr>
-            <th class="letters">G</td>
-            <td><div id="60"></div></td>
-            <td><div id="61"></div></td>
-            <td><div id="62"></div></td>
-            <td><div id="63"></div></td>
-            <td><div id="64"></div></td>
-            <td><div id="65"></div></td>
-            <td><div id="66"></div></td>
-          </tr>
-        </table>
-
-        <button type="button" class="btn btn-primary" id="saveBoard_old">SAVE BOARD</button>
-      </div>
-
-      <div aria-live="polite" aria-atomic="true" style="position: relative; min-height: 200px;">
-        <!-- Position it -->
-        <div style="position: absolute; top: 0; right: 0;">
-          <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastRegistrationError">
-            <div class="toast-header">
-              <img src="images/info.png" class="rounded mr-2" alt="...">
-              <strong class="mr-auto">Information</strong>
-              <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="toast-body">
-              The registration amount is not been set, retry!
-            </div>
+    <div aria-live="polite" aria-atomic="true" style="position: relative; min-height: 200px;">
+      <!-- Position it -->
+      <div style="position: absolute; top: 0; right: 0;">
+        <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastRegistrationError">
+          <div class="toast-header">
+            <img src="images/info.png" class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Information</strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
           </div>
-
-          <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastPay">
-            <div class="toast-header">
-              <img src="images/info.png" class="rounded mr-2" alt="...">
-              <strong class="mr-auto">Information</strong>
-              <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="toast-body">
-              Your transfer has been submitted, the game is starting!
-            </div>
+          <div class="toast-body">
+            The registration amount is not been set, retry!
           </div>
+        </div>
 
-          <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastRegistrationSuccess">
-            <div class="toast-header">
-              <img src="images/info.png" class="rounded mr-2" alt="...">
-              <strong class="mr-auto">Information</strong>
-              <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="toast-body">
-              Registration successuflly submitted!
-            </div>
+        <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastPay">
+          <div class="toast-header">
+            <img src="images/info.png" class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Information</strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
           </div>
-
-          <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastJoinSuccess">
-            <div class="toast-header">
-              <img src="images/info.png" class="rounded mr-2" alt="...">
-              <strong class="mr-auto">Information</strong>
-              <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="toast-body">
-              You joined in new game!
-            </div>
+          <div class="toast-body">
+            Your transfer has been submitted, the game is starting!
           </div>
+        </div>
 
-          <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastJoinError">
-            <div class="toast-header">
-              <img src="images/info.png" class="rounded mr-2" alt="...">
-              <strong class="mr-auto">Information</strong>
-              <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="toast-body">
-              Sorry, no random game is available. Please create a new one.
-            </div>
+        <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastRegistrationSuccess">
+          <div class="toast-header">
+            <img src="images/info.png" class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Information</strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
           </div>
+          <div class="toast-body">
+            Registration successuflly submitted!
+          </div>
+        </div>
 
-          <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastNewGameError">
-            <div class="toast-header">
-              <img src="images/info.png" class="rounded mr-2" alt="...">
-              <strong class="mr-auto">Information</strong>
-              <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="toast-body">
-              An error occour in the game creation, please try again.
-            </div>
+        <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastJoinSuccess">
+          <div class="toast-header">
+            <img src="images/info.png" class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Information</strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="toast-body">
+            You joined in new game!
+          </div>
+        </div>
+
+        <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastJoinError">
+          <div class="toast-header">
+            <img src="images/info.png" class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Information</strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="toast-body">
+            Sorry, no random game is available. Please create a new one.
+          </div>
+        </div>
+
+        <div class="toast" style="position: absolute; top: 0; right: 0;" id="toastNewGameError">
+          <div class="toast-header">
+            <img src="images/info.png" class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Information</strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="toast-body">
+            An error occour in the game creation, please try again.
           </div>
         </div>
       </div>
-      
     </div>
+    
+  </div>
 
     <script src="https://unpkg.com/@metamask/legacy-web3@latest/dist/metamask.web3.min.js"></script>
 

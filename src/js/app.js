@@ -307,23 +307,31 @@ App = {
         
           if(gameId!=""){
             console.log("call to checkMerkleProof");
-            
-            const sibilings=App.getSibilings(idToCheck);
-            App.getLastMove();
-            
+            //App.getLastMove();
+            App.contracts.Battleship.deployed().then(function (instance){
+              return instance.getLastMoves.call(gameId);
+            }).then(function(result){
+              App.lastMove=result;
 
-            otherWeb3.eth.getAccounts(function(error, accounts) {
-              if (error) { console.log(error); }
-              var account = accounts[0];
-              App.contracts.Battleship.deployed().then(function (instance) {
-                return instance.checkMerkleProof(gameId, sibilings, hit,{from: account});
-              }).then(function(result) {
-                console.log(result);
-                $('#sendMove').attr('disabled', true);
-              }).catch(function(err) {
-                console.log(err.message);
-              });
-            });  
+              const sibilings=App.getSibilings(idToCheck);
+              const leafIndex = (parseInt(App.lastMove.split("-")[0]) - 1) * parseInt(App.infos[1], 16) + (parseInt(App.lastMove.split("-")[1]) - 1);
+              
+              otherWeb3.eth.getAccounts(function(error, accounts) {
+                if (error) { console.log(error); }
+                var account = accounts[0];
+                App.contracts.Battleship.deployed().then(function (instance) {
+                  return instance.checkMerkleProof(gameId, sibilings, hit, leafIndex, {from: account});
+                }).then(function(result) {
+                  console.log(result);
+                  $('#sendMove').attr('disabled', true);
+                }).catch(function(err) {
+                  console.log(err.message);
+                });
+              }); 
+
+            }).catch(function(err){
+              console.log(err.message);
+            }); 
           }     
         }
       });
@@ -369,28 +377,65 @@ App = {
         const data=result;
         console.log(data);
         if(data.event=="SendRequestBoard" && result.args.player==otherWeb3.eth.accounts[0]){
-          /*if(data.args.hit){
-            $('#a'+idToCheck).attr('class', 'hit');
-            $('#resultMove').text('hit');
-          }else{
-            $('#a'+idToCheck).attr('class', 'miss');
-            $('#resultMove').text('miss');
+          var table=document.getElementById("gameBoard");
+          var board=[];
+          var gameId=$('#gameIDreg').text();
+
+          for (var i = 1, row; row = table.rows[i]; i++) {
+              var row=[];
+              for (var j = 1, col; col = row.cells[j]; j++) {
+                if(col.firstChild.getAttribute("class") == 'hit'){
+                  row.push(1)
+                }else{
+                  row.push(0)
+                }         
+              }
+              board.push(row);  
           }
-          $('#sendMove').attr('disabled', false);
-          $('#advice').text("It's your turn: shoot!");
-        */}/*else{
-          $('#sendMove').attr('disabled', true);
-          $('#advice').text("Wait for your turn: keep calm!");
-        }*/
+
+          otherWeb3.eth.getAccounts(function(error, accounts) {
+            if (error) { console.log(error); }
+            var account = accounts[0];
+            App.contracts.Battleship.deployed().then(function (instance) {
+              return instance.checkBoard(gameId, board, {from: account});
+            }).then(function(result) {
+              console.log(result);
+            }).catch(function(err) {
+              console.log(err.message);
+            });
+          });
+
+        }
       });
       instance.SendWrongMove({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
           return error(err);
         }        
+        const data=result;
         console.log(data);
         if(data.event=="SendWrongMove" && result.args.player==otherWeb3.eth.accounts[0]){
-          const data=result;
+          
           console.log(data);
+        }
+      });
+      instance.SendVictory({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }        
+        const data=result;
+        if(data.event=="SendVictory"){
+          if(result.args.winner==otherWeb3.eth.accounts[0]){
+            console.log(data);
+            $('#board').attr('hidden', true);
+            $('#enemyBoard').attr('hidden', true);
+            $('#win').attr('hidden', false);
+          }
+          else if(result.args.loser==otherWeb3.eth.accounts[0]){
+            console.log(data);
+            $('#board').attr('hidden', true);
+            $('#enemyBoard').attr('hidden', true);
+            $('#lose').attr('hidden', false);
+          }
         }
       });
     });
@@ -400,21 +445,21 @@ App = {
     const proof = [];
     const treeHeight = Math.log2(App.sibilings.length);
     
-    var row = parseInt($('#tableWidth').val()) - parseInt(id.split("-")[0]);
-    var col = parseInt($('#tableWidth').val()) - parseInt(id.split("-")[1]);
+    var row = parseInt($('#tableWidth').val()) - parseInt(id.split("-")[0]); // 2-1 = 1
+    var col = parseInt($('#tableWidth').val()) - parseInt(id.split("-")[1]); // 2-2 = 0
 
-    // -1 is for the length
-    var leafIndex = App.sibilings.length - 1 - (row * parseInt($('#tableWidth').val()) + col);
+    // -1 is for the start from zero
+    var leafIndex = App.sibilings.length - (row * parseInt($('#tableWidth').val()) + col); // 7-2 = 5
     // insert also the first node
-    proof.push(App.sibilings[leafIndex]);
+    proof.push(App.sibilings[leafIndex-1]);
 
     for (let level = 0; level < treeHeight; level++) {
-      if (leafIndex % 2 === 1) { // left child
-        const siblingIndex = leafIndex + 1;
-        proof.push(App.sibilings[siblingIndex]);
-      } else { // right child
+      if (leafIndex % 2 === 1) { // right child
         const siblingIndex = leafIndex - 1;
-        proof.push(App.sibilings[siblingIndex]);
+        proof.push(App.sibilings[siblingIndex-1]);
+      } else { // left child
+        const siblingIndex = leafIndex + 1;
+        proof.push(App.sibilings[siblingIndex-1]);
       }
       leafIndex = Math.floor(leafIndex / 2);
     }
