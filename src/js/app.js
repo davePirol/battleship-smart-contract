@@ -42,10 +42,7 @@ App = {
         App.battleshipInstance = instance;
         App.listenForEvents();
       });
-    });/*.done(function() {
-      App.battleshipInstance = instance;
-      App.listenForEvents(); // Call listenForEvents here
-    });*/    
+    });  
 
     return App.bindEvents();
   },
@@ -58,6 +55,7 @@ App = {
     $(document).on('click', '#payGame', App.pay);
     $(document).on('click', '#saveBoard', App.sendBoard);
     $(document).on('click', '#sendMove', App.sendMove);
+    $(document).on('click', '#reportPlayer', App.reportPlayer);
   },
 
   startNewGame: function(){
@@ -89,8 +87,7 @@ App = {
       App.contracts.Battleship.deployed().then(function (instance){
         return instance.join(gameId, false, [], {from: account});
       }).then(function(result){
-        $('#chooseSize').attr('hidden', true);
-        $('#registration').attr('hidden', false);
+        return;
 ì      }).catch(function(err){
         console.log(err);
       });
@@ -103,20 +100,9 @@ App = {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance){
-        return instance.join.call(0, false, [], {from: account});
-      }).then(function(newGameId){
-
-        if (newGameId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-
-          var newGameId=result.logs[0].args.gameId
-          $('#gameIDreg').text(newGameId);
-          $('#chooseSize').attr('hidden', true);
-          $('#registration').attr('hidden', false);
-
-        }else{
-          $('#toastJoinError').toast('show');
-          return;
-        }
+        return instance.join(0, false, [],{from: account});
+      }).then(function(){
+        return;
       }).catch(function(err){
         console.log(err.message);
       });
@@ -171,7 +157,7 @@ App = {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance) {
-        return instance.pay(gameId, {from: account, value: $('#registrationAmount').val()+"000000000000000000"});
+        return instance.pay(gameId, {from: account, value: web3Utils.toWei($('#registrationAmount').val())});
       }).then(function() {
         var n=$('#tableWidth').val();
         setTable(n);
@@ -255,7 +241,27 @@ App = {
         $('#advice').text("An error is occured: shoot again!");
       });
     });
+  },
 
+  reportPlayer: function(){
+    var gameId=$('#gameIDreg').text();
+    
+    otherWeb3.eth.getAccounts(function(error, accounts) {
+      if (error) { console.log(error); }
+      var account = accounts[0];
+      App.contracts.Battleship.deployed().then(function (instance) {
+        return instance.notifyDelay(gameId, {from: account});
+      }).then(function(result) {
+        console.log(result);
+
+        // verifica il risultato true o false e metti un avviso
+
+      }).catch(function(err) {
+        console.log(err.message);
+        $('#sendMove').attr('disabled', false);
+        $('#advice').text("An error is occured: shoot again!");
+      });
+    });
   },
 
   listenForEvents: function(){
@@ -267,7 +273,6 @@ App = {
         const data=result;
         var newGameId=data.args.gameId;
         if(data.event=="SendNewGameCreate" && data.args.player==otherWeb3.eth.accounts[0]){
-          console.log(data);
           if (newGameId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
             $('#gameIDreg').text(newGameId);
             $('#chooseSize').attr('hidden', true);
@@ -283,19 +288,23 @@ App = {
         if (err) {
           return error(err);
         }
+        var gameId=$('#gameIDreg').text();
         const data=result;
-        if(data.event=="SendRequestAmount" && data.args.player==otherWeb3.eth.accounts[0]){
+        if(data.event=="SendRequestAmount" && data.args.player==otherWeb3.eth.accounts[0] && data.args.gameId==gameId){
           console.log(result);
+          App.getInfo();
         }
       });
       instance.SendMovesAdvice({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
           return error(err);
-        }        
+        }    
+        var gameId=$('#gameIDreg').text();    
         const data=result;        
-        if(data.event=="SendMovesAdvice" && data.args.player==otherWeb3.eth.accounts[0]){
+        if(data.event=="SendMovesAdvice" && data.args.player==otherWeb3.eth.accounts[0] && data.args.gameId==gameId){
           
           console.log(data);
+          $('#reportPlayer').attr('disabled', true);
           
           var idToCheck=data.args.move;
           if($('#'+idToCheck).attr('class')=='hit')
@@ -339,15 +348,18 @@ App = {
         if (err) {
           return error(err);
         }
+        var gameId=$('#gameIDreg').text();
         const data=result;
-        if(data.event=="SendTurnAdvice"){
+        if(data.event=="SendTurnAdvice" && data.args.gameId==gameId){
           if(data.args.play==otherWeb3.eth.accounts[0]){
             console.log(data);          
             $('#sendMove').attr('disabled', false);
+            $('#reportPlayer').attr('disabled', true);
             $('#advice').text("It's your turn: shoot!");  
           }else if(data.args.wait==otherWeb3.eth.accounts[0]){
             console.log(data);          
             $('#sendMove').attr('disabled', true);
+            $('#reportPlayer').attr('disabled', false);
             $('#advice').text("Keep calm: wait your turn!");  
           }        
         }
@@ -356,9 +368,12 @@ App = {
         if (err) {
           return error(err);
         }
+        var gameId=$('#gameIDreg').text();
         const data=result;
-        if(data.event=="SendMoveResult" && result.args.player==otherWeb3.eth.accounts[0]){
+        if(data.event=="SendMoveResult" && result.args.player==otherWeb3.eth.accounts[0] && data.args.gameId==gameId){
+                    
           console.log(data);
+          
           if(data.args.hit){
             $('#a'+data.args.coordinate).attr('class', 'hit');
             $('#resultMove').text('hit');
@@ -374,30 +389,34 @@ App = {
         if (err) {
           return error(err);
         }
+        var gameId=$('#gameIDreg').text();
         const data=result;
-        console.log(data);
-        if(data.event=="SendRequestBoard" && result.args.player==otherWeb3.eth.accounts[0]){
+        if(data.event=="SendRequestBoard" && result.args.player==otherWeb3.eth.accounts[0] && data.args.gameId==gameId){
+          console.log(data);
+
+          $('#reportPlayer').attr('disabled', true);
+
           var table=document.getElementById("gameBoard");
           var board=[];
           var gameId=$('#gameIDreg').text();
 
           for (var i = 1, row; row = table.rows[i]; i++) {
-              var row=[];
+              var riga=[];
               for (var j = 1, col; col = row.cells[j]; j++) {
                 if(col.firstChild.getAttribute("class") == 'hit'){
-                  row.push(1)
+                  riga.push(1)
                 }else{
-                  row.push(0)
+                  riga.push(0)
                 }         
               }
-              board.push(row);  
+              board.push(riga);  
           }
 
           otherWeb3.eth.getAccounts(function(error, accounts) {
             if (error) { console.log(error); }
             var account = accounts[0];
             App.contracts.Battleship.deployed().then(function (instance) {
-              return instance.checkBoard(gameId, board, {from: account});
+              return instance.checkBoard(gameId, board.flat(), {from: account});
             }).then(function(result) {
               console.log(result);
             }).catch(function(err) {
@@ -410,11 +429,10 @@ App = {
       instance.SendWrongMove({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
           return error(err);
-        }        
+        }    
+        var gameId=$('#gameIDreg').text();    
         const data=result;
-        console.log(data);
-        if(data.event=="SendWrongMove" && result.args.player==otherWeb3.eth.accounts[0]){
-          
+        if(data.event=="SendWrongMove" && result.args.player==otherWeb3.eth.accounts[0] && data.args.gameId==gameId){
           console.log(data);
         }
       });
@@ -422,8 +440,9 @@ App = {
         if (err) {
           return error(err);
         }        
+        var gameId=$('#gameIDreg').text();
         const data=result;
-        if(data.event=="SendVictory"){
+        if(data.event=="SendVictory" && data.args.gameId==gameId){
           if(result.args.winner==otherWeb3.eth.accounts[0]){
             console.log(data);
             $('#board').attr('hidden', true);
@@ -435,6 +454,39 @@ App = {
             $('#board').attr('hidden', true);
             $('#enemyBoard').attr('hidden', true);
             $('#lose').attr('hidden', false);
+          }
+        }
+      });
+      instance.SendStopReport({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }    
+        var gameId=$('#gameIDreg').text();    
+        const data=result;
+        if(data.event=="SendStopReport" && result.args.player==otherWeb3.eth.accounts[0] && data.args.gameId==gameId){
+          console.log(data);
+          $('#stopReport').attr('hidden', false);
+          setTimeout(function(){
+            $('#stopReport').attr('hidden', true);
+          }, 5000);
+        }
+      });
+      instance.SendCheatPayment({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }    
+        var gameId=$('#gameIDreg').text();    
+        const data=result;
+        if(data.event=="SendCheatPayment" && data.args.gameId==gameId){
+          console.log(data);
+          if(result.args.cheater==otherWeb3.eth.accounts[0]){
+            $('#board').attr('hidden', true);
+            $('#enemyBoard').attr('hidden', true);
+            $('#cheater').attr('hidden', false);
+          }else if(result.args.receiver==otherWeb3.eth.accounts[0] ){
+            $('#board').attr('hidden', true);
+            $('#enemyBoard').attr('hidden', true);
+            $('#receiver').attr('hidden', false);
           }
         }
       });
@@ -481,34 +533,21 @@ App = {
     });
   },
 
-  //standard template for call
-  markAdopted: function() {
-    App.contracts.Battleship.deployed().then(function (instance){
-      return instance.function.call();
-    }).then(function(result){
-      
-    }).catch(function(err){
-      console.log(err.message);
-    });
-  },
-
-
-  //standard template for transaction with address
-  handleAdopt: function(event) {
-    event.preventDefault();
+  consumeTime: function(){
     otherWeb3.eth.getAccounts(function(error, accounts) {
       if (error) { console.log(error); }
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance) {
-        return instance.adopt(petId, {from: account});
+        return instance.dummyFunction({from: account});
       }).then(function() {
-        return App.markAdopted();
+        console.log("consumed one block");
+        return;
       }).catch(function(err) {
         console.log(err.message);
       });
     });
   }
-};
+}
 
 $(function() {
   $(window).load(function() {

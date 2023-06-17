@@ -88,12 +88,14 @@
       
 
         <div id="enemyBoard" hidden>
-          <h2>Result of your move: <span id="resultMove"></span></h2>
+          <h2>Result of your move: <span id="resultMove" style="color: crimson;"></span></h2>
           <div id="messageArea"><span id="advice"></span></div>
+          <div id="messageArea"><span id="stopReport" style="color: crimson;" hidden>STOP REPORT OTHER PLAYER!</span></div>
             <table id="adversaryBoard">            
               
             </table>
             <button type="button" class="btn btn-primary" id="sendMove" disabled>SEND MOVE</button>
+            <button type="button" class="btn btn-danger" id="reportPlayer" style="margin-left:10px">REPORT PLAYER</button>
         </div>
 
         <div id="win" hidden>        
@@ -107,6 +109,39 @@
               <h2>YOU LOSE...</h2>
             </div>
           </div>          
+        </div>
+        
+        <div id="cheater" hidden>        
+          <div id="messageArea">
+            <div class="waviy">
+              <span style="--i:1">C</span>
+              <span style="--i:2">h</span>
+              <span style="--i:3">e</span>
+              <span style="--i:4">a</span>
+              <span style="--i:5">t</span>
+              <span style="--i:6">e</span>
+              <span style="--i:7">r</span>
+              <span style="--i:8">...</span>
+             </div>
+             <h4 style="text-align: center;">You took too long time to decide your move, the game amount is sent to adversary.</h4> 
+          </div>          
+        </div>
+
+        <div id="receiver" hidden>        
+          <div id="messageArea">
+            <div class="waviy">
+              <span style="--i:1">R</span>
+              <span style="--i:2">e</span>
+              <span style="--i:3">f</span>
+              <span style="--i:4">u</span>
+              <span style="--i:5">n</span>
+              <span style="--i:6">d</span>
+              <span style="--i:7">e</span>
+              <span style="--i:8">d</span>
+             </div>
+             <h4 style="text-align: center;">The amount of the game is sent to your wallet: check this out.</h4> 
+          </div>
+                   
         </div>
       </div>
     </div>
@@ -190,6 +225,19 @@
           </div>
           <div class="toast-body">
             An error occour in the game creation, please try again.
+          </div>
+        </div>
+        
+        <div class="toast" style="position: absolute; top: 0; right: 0;" id="stopReportToast">
+          <div class="toast-header">
+            <img src="images/info.png" class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Information</strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="toast-body">
+            Stop to report other player!!
           </div>
         </div>
       </div>

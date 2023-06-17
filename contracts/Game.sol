@@ -19,17 +19,21 @@ contract Game {
         string lastMove; // last move played in the game [1-2][2-4][1-1][2-2] --> first x then y
         string[] moves;     // l'array avrà quindi le caselle pari per il p1 e disapari per il p2 e li metterai le mosse fatte in chiaro
                             // con anche il risultato della mossa tipo 1.1.0 (casella 1 1 mancato) 2.1.1 (casella 2 1 colpito)
+        uint lastBlockPlayed;
     }
 
     GameMatch[] public matches;
     event SendNewGameCreate(address player, bytes32 gameId, uint ships, uint tableSize);
-    event SendRequestAmount(address player, int amount);    //tell to the player to put the money to start play
-    event SendTurnAdvice(address play, address wait);   //tell to the player that is his/her turn
-    event SendMovesAdvice(address player, string move);  //tell to the player that have been shoot
-    event SendRequestBoard(address player);   //tell to the player that have won
-    event SendWrongMove(address player);    //tell to the player that is not a valid move
-    event SendVictory(address winner, address loser);
-    event SendMoveResult(address player, bool hit, string coordinate);
+    event SendRequestAmount(address player, int amount, bytes32 gameId);    //tell to the player to put the money to start play
+    event SendTurnAdvice(address play, address wait, bytes32 gameId);   //tell to the player that is his/her turn
+    event SendMovesAdvice(address player, string move, bytes32 gameId);  //tell to the player that have been shoot
+    event SendRequestBoard(address player, bytes32 gameId);   //tell to the player that have won
+    event SendWrongMove(address player, bytes32 gameId);    //tell to the player that is not a valid move
+    event SendVictory(address winner, address loser, bytes32 gameId);
+    event SendMoveResult(address player, bool hit, string coordinate, bytes32 gameId);
+    event SendCheatPayment(address cheater, address receiver, bytes32 gameId);
+    event SendStopReport(address player, bytes32 gameId);
+     
 
     function join(bytes32 _gameId, bool _isNew, uint8[] memory _info) public{
         
@@ -54,7 +58,7 @@ contract Game {
             // otherwise create a new game
             bytes32 newGameId = keccak256(abi.encode(matches.length));
             string[] memory _moves = new string[](0);
-            matches.push(GameMatch(newGameId, _info[1], _info[0], msg.sender, address(0), -1, 0, true, 0, 0, "",  _moves));
+            matches.push(GameMatch(newGameId, _info[1], _info[0], msg.sender, address(0), -1, 0, true, 0, 0, "",  _moves, block.number));
             emit SendNewGameCreate(msg.sender, newGameId, _info[0], _info[1]);
             return;
         }
@@ -81,9 +85,9 @@ contract Game {
                 if(matches[i].registration < 0){
                     matches[i].registration=_registration;
                     if(matches[i].p1==msg.sender)
-                        emit SendRequestAmount(matches[i].p2, _registration);
+                        emit SendRequestAmount(matches[i].p2, _registration, matches[i].gameId);
                     else
-                        emit SendRequestAmount(matches[i].p2, _registration);
+                        emit SendRequestAmount(matches[i].p2, _registration, matches[i].gameId);
                     return;
                 }
                 else{
@@ -146,7 +150,8 @@ contract Game {
                     matches[i].b2=_hashedBoard;
                 }
                 matches[i].turn=true;
-                emit SendTurnAdvice(matches[i].p1, matches[i].p2);
+                matches[i].lastBlockPlayed=block.number;
+                emit SendTurnAdvice(matches[i].p1, matches[i].p2, matches[i].gameId);
             }
         }
     }
@@ -157,11 +162,11 @@ contract Game {
             if(matches[i].gameId == _gameId){
                 if(matches[i].p1==msg.sender && matches[i].turn){
                     matches[i].lastMove=_coordinate;
-                    emit SendMovesAdvice(matches[i].p2, _coordinate);
+                    emit SendMovesAdvice(matches[i].p2, _coordinate, matches[i].gameId);
                 }
                 else if(matches[i].p2==msg.sender && !matches[i].turn){
                     matches[i].lastMove=_coordinate;
-                    emit SendMovesAdvice(matches[i].p1, _coordinate);
+                    emit SendMovesAdvice(matches[i].p1, _coordinate, matches[i].gameId);
                 }
             }
         }
@@ -191,17 +196,6 @@ contract Game {
                     _trueBoard=matches[i].b2;
                 }        
                 
-               
-                //uint row = stringToUint(splitString(matches[i].lastMove, "-")[0]) - 1;
-                //uint col = stringToUint(splitString(matches[i].lastMove, "-")[1]) - 1;
-                //uint toCheck = row*matches[i].tableSize + col;
-                
-                //if(toCheck%2!=0){
-                //    bytes32 _t = _sibilings[0];
-                //    _sibilings[0] = _sibilings[1];
-                //    _sibilings[1] = _t;
-                //}
-
                 bytes32 _b=_sibilings[0];
                 for(uint j=1; j < _sibilings.length; j++){
                     // compute the merkle proof
@@ -218,31 +212,32 @@ contract Game {
                 // confronta il risultato con _b se ok allora memorizza la mossa valida e return true
 
                 if(_b == _trueBoard){
+                    // register the valid move
                     string memory _r=_hit?"-1":"-0";
                     matches[i].moves.push(string(abi.encodePacked(matches[i].lastMove, _r)));
+                    matches[i].lastBlockPlayed = block.number;
                     address _wait;
                     if(msg.sender==matches[i].p1){
                         _wait=matches[i].p2;
-                        emit SendMoveResult(matches[i].p2, _hit, matches[i].lastMove);
+                        emit SendMoveResult(matches[i].p2, _hit, matches[i].lastMove, matches[i].gameId);
                     }else{
                         _wait =matches[i].p1;
-                        emit SendMoveResult(matches[i].p1, _hit, matches[i].lastMove);
+                        emit SendMoveResult(matches[i].p1, _hit, matches[i].lastMove, matches[i].gameId);
                     }
 
                     // chiama la funzione checkWin e richiedi la board da controllare all'altro giocatore
                     if(checkWin(matches[i])){
-                        emit SendRequestBoard(_wait);
+                        emit SendRequestBoard(_wait, matches[i].gameId);
                         
                     }else{
                         // altrimenti emetti l'evento cambia turno
-                        emit SendTurnAdvice(msg.sender, _wait);
+                        emit SendTurnAdvice(msg.sender, _wait, matches[i].gameId);
                         matches[i].turn ? matches[i].turn=false : matches[i].turn=true; 
-                    }
-                        
+                    }                        
                     return;
                 }
                 else{   
-                    emit SendWrongMove(msg.sender);             
+                    emit SendWrongMove(msg.sender, matches[i].gameId);             
                     return;
                 }                
             }
@@ -275,32 +270,57 @@ contract Game {
         }
     }
 
-    function checkBoard(bytes32 _gameId, int[][] memory _board) public payable returns(bool){        
+    function checkBoard(bytes32 _gameId, uint256[] memory _board) public payable returns(bool){        
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 //controllo sovrapposizioni navi
                 uint8 count=0;
-                for(uint q = 0; q < matches[i].tableSize; q++){
-                    for(uint k = 0; k < matches[i].tableSize; k++){
-                        if(_board[q][k] == 1) //there is a ship
-                            count++;
-                    }
+                for(uint q = 0; q < matches[i].tableSize**2; q++){
+                    if(_board[q] == 1) //there is a ship
+                        count++;
                 }
 
-                if(count == matches[i].ships){ //there aren't ship overlapped
+                if(count == matches[i].ships*2){ //there aren't ship overlapped
                     payable(msg.sender).transfer(address(this).balance);
                     if(msg.sender == matches[i].p1)
-                        emit SendVictory(msg.sender, matches[i].p2);
+                        emit SendVictory(msg.sender, matches[i].p2, matches[i].gameId);
                     else
-                        emit SendVictory(matches[i].p2, msg.sender);
+                        emit SendVictory(matches[i].p2, msg.sender, matches[i].gameId);
                 }
             }
         }
     }
 
-    function notifyDelay() public{
-        //wait for 5 blocks and if there isn't a reply
+    function notifyDelay(bytes32 _gameId) public{
+        // wait for 5 blocks and if there isn't a reply
         // pay the other player
+        for(uint8 i=0; i < matches.length; i++){
+            if(matches[i].gameId == _gameId){
+                // the one who complain it isn't its turn 
+                if(msg.sender==matches[i].p1)
+                    require(!matches[i].turn);
+                else if(msg.sender == matches[i].p2)
+                    require(matches[i].turn);
+
+                if(block.number >= (matches[i].lastBlockPlayed+5)){
+                    if(msg.sender==matches[i].p1){
+                        payable(matches[i].p1).transfer(address(this).balance);
+                        emit SendCheatPayment(matches[i].p2, matches[i].p1, matches[i].gameId);
+                        return;
+                    }else if(msg.sender == matches[i].p2){
+                        payable(matches[i].p2).transfer(address(this).balance);
+                        emit SendCheatPayment(matches[i].p1, matches[i].p2, matches[i].gameId);
+                        return;
+                    }
+                }
+                emit SendStopReport(msg.sender, matches[i].gameId);
+                return;
+            }
+        }
+    }
+
+    function dummyFunction() public{
+        // dummy function to progress in block numbers                
     }
 
     fallback() external{
