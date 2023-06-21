@@ -22,7 +22,7 @@
   <body>
     <div class="container">
       <div class="row">
-        <div class="col-xs-12 col-sm-8 col-sm-push-2">
+        <div class="col-xs-12 col-sm-push-2">
           <h1 class="text-center">Battleship</h1>
           <hr/>
           <br/>
@@ -50,10 +50,12 @@
                 <div class="col-12">
                   <label for="nShips" class="form-label">How many ships?</label>
                   <input type="number" class="form-control" id="nShips">
+                  <p class="error nShips-error" style="background-color: red; color:white; text-align: center;"></p>
                 </div>
                 <div class="col-12">
                   <label for="tableWidth" class="form-label">Width of table</label>
                   <input type="number" class="form-control" id="tableWidth">
+                  <p class="error tableWidth-error" style="background-color: red; color:white; text-align: center;"></p>
                 </div>
                 <div class="col-12">
                   <button type="button" class="btn btn-primary" id="playNew">PLAY</button>

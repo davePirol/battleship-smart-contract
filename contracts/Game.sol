@@ -65,7 +65,7 @@ contract Game {
 
         // set player 2 in random game if available
         for(uint8 i=0; i<matches.length; i++){
-            if(matches[i].p2 != address(0)){
+            if(matches[i].p2 == address(0) && matches[i].p1 != msg.sender){
                 matches[i].p2=msg.sender;
                 emit SendNewGameCreate(msg.sender, matches[i].gameId, matches[i].ships, matches[i].tableSize);
                 return;
@@ -87,7 +87,7 @@ contract Game {
                     if(matches[i].p1==msg.sender)
                         emit SendRequestAmount(matches[i].p2, _registration, matches[i].gameId);
                     else
-                        emit SendRequestAmount(matches[i].p2, _registration, matches[i].gameId);
+                        emit SendRequestAmount(matches[i].p1, _registration, matches[i].gameId);
                     return;
                 }
                 else{
@@ -124,10 +124,10 @@ contract Game {
         }
     }
 
-    function getReward(bytes32 _gameId) external view returns(int){
+    function getReward(bytes32 _gameId) external view returns(int result){
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
-                return matches[i].registration;
+                result = matches[i].registration;
             }
         }
     }
@@ -176,16 +176,15 @@ contract Game {
         get the last move of the game
         then compute the merkle tree as a proof 
      */
-    function getLastMoves(bytes32 _gameId) public view returns(string memory){
+    function getLastMoves(bytes32 _gameId) public view returns(string memory result){
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
-                return matches[i].lastMove;
+                result = matches[i].lastMove;
             }
         }
     }
 
     function checkMerkleProof(bytes32 _gameId, bytes32[] memory _sibilings, bool _hit, uint256 _leafIndex) public {
-        
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 bytes32 _trueBoard;
@@ -196,9 +195,9 @@ contract Game {
                     _trueBoard=matches[i].b2;
                 }        
                 
+                // compute the merkle proof
                 bytes32 _b=_sibilings[0];
                 for(uint j=1; j < _sibilings.length; j++){
-                    // compute the merkle proof
                     bytes32 _b1=_b;
                     bytes32 _b2=_sibilings[j];
                     if(_leafIndex% 2 == 0)
@@ -209,13 +208,12 @@ contract Game {
                     _leafIndex = _leafIndex / 2;
                 }
 
-                // confronta il risultato con _b se ok allora memorizza la mossa valida e return true
-
+                // compare the result with _b if equal store the valid move in array and emit the move result event 
                 if(_b == _trueBoard){
-                    // register the valid move
                     string memory _r=_hit?"-1":"-0";
                     matches[i].moves.push(string(abi.encodePacked(matches[i].lastMove, _r)));
                     matches[i].lastBlockPlayed = block.number;
+                    
                     address _wait;
                     if(msg.sender==matches[i].p1){
                         _wait=matches[i].p2;
@@ -225,18 +223,19 @@ contract Game {
                         emit SendMoveResult(matches[i].p1, _hit, matches[i].lastMove, matches[i].gameId);
                     }
 
-                    // chiama la funzione checkWin e richiedi la board da controllare all'altro giocatore
+                    // call check win function if return true then request to the winner player his board
                     if(checkWin(matches[i])){
                         emit SendRequestBoard(_wait, matches[i].gameId);
                         
                     }else{
-                        // altrimenti emetti l'evento cambia turno
+                        // otherwise emit the change turn event
                         emit SendTurnAdvice(msg.sender, _wait, matches[i].gameId);
                         matches[i].turn ? matches[i].turn=false : matches[i].turn=true; 
                     }                        
                     return;
                 }
                 else{   
+                    // something goes wrong and emit the wrong move event
                     emit SendWrongMove(msg.sender, matches[i].gameId);             
                     return;
                 }                

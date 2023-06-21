@@ -61,6 +61,29 @@ App = {
   startNewGame: function(){
     let nShips=$('#nShips').val();
     let tableWidth=$('#tableWidth').val();
+
+    if(nShips == '' || tableWidth == ''){
+      $(".tableWidth-error").text("required");
+      $(".tableWidth-error").css("display", "block");
+      $(".nShips-error").text("required");
+      $(".nShips-error").css("display", "block");
+      return;
+    }
+
+    if((Math.log(tableWidth)/Math.log(2)) % 1 !== 0){
+      $(".nShips-error").css("display", "none");
+      $(".tableWidth-error").text("Set a number power of two");
+      $(".tableWidth-error").css("display", "block");
+      return;
+    }
+
+    if(nShips >= (Math.pow(tableWidth, 2)/2)){
+      $(".tableWidth-error").css("display", "none");
+      $(".nShips-error").text("Too many ships, decrease");
+      $(".nShips-error").css("display", "block");
+      return;
+    }
+
     var arr = [nShips, tableWidth];
     event.preventDefault();
     otherWeb3.eth.getAccounts(function(error, accounts) {
@@ -69,6 +92,7 @@ App = {
       App.contracts.Battleship.deployed().then(function (instance){
         return instance.join(0, true, arr, {from: account});
       }).then(function(result){
+        console.log(result);
         return;
       }).catch(function(err){
         console.log(err);
@@ -87,6 +111,7 @@ App = {
       App.contracts.Battleship.deployed().then(function (instance){
         return instance.join(gameId, false, [], {from: account});
       }).then(function(result){
+        console.log(result);
         return;
 ì      }).catch(function(err){
         console.log(err);
@@ -101,7 +126,8 @@ App = {
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance){
         return instance.join(0, false, [],{from: account});
-      }).then(function(){
+      }).then(function(result){
+        console.log(result);
         return;
       }).catch(function(err){
         console.log(err.message);
@@ -136,6 +162,7 @@ App = {
       App.contracts.Battleship.deployed().then(function (instance) {
         return instance.setReward(gameId, amount, {from: account});
       }).then(function(result) {
+        console.log(result);
         if(result){
           $('#setRegAmount').attr('disabled', true);
           $('#registrationAmount').attr('disabled', true);
@@ -158,7 +185,8 @@ App = {
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance) {
         return instance.pay(gameId, {from: account, value: web3Utils.toWei($('#registrationAmount').val())});
-      }).then(function() {
+      }).then(function(result) {
+        console.log(result);
         var n=$('#tableWidth').val();
         setTable(n);
         $('#numShipsBoard').append($('#nShips').val());
@@ -216,7 +244,7 @@ App = {
     $('#advice').text("Wait for reply: be patient");
     
     var gameId=$('#gameIDreg').text();
-    var idRaw;
+    var idRaw=null;
     var table=document.getElementById("adversaryBoard");
     for (var i = 1, row; row = table.rows[i]; i++) {
       for (var j = 1, col; col = row.cells[j]; j++) {
@@ -224,6 +252,12 @@ App = {
               idRaw=col.firstChild.id;
       }  
     }
+
+    if(idRaw == null){
+      $('#advice').text("Select an empty cell!");
+      return;
+    }
+
     var id=idRaw.substring(1);
     var coordinate=id;
 
@@ -234,6 +268,7 @@ App = {
       App.contracts.Battleship.deployed().then(function (instance) {
         return instance.shoot(gameId, coordinate,{from: account});
       }).then(function(result) {
+        $('#reportPlayer').attr('disabled', false);
         console.log(result);
       }).catch(function(err) {
         console.log(err.message);
@@ -253,9 +288,6 @@ App = {
         return instance.notifyDelay(gameId, {from: account});
       }).then(function(result) {
         console.log(result);
-
-        // verifica il risultato true o false e metti un avviso
-
       }).catch(function(err) {
         console.log(err.message);
         $('#sendMove').attr('disabled', false);
@@ -539,7 +571,8 @@ App = {
       var account = accounts[0];
       App.contracts.Battleship.deployed().then(function (instance) {
         return instance.dummyFunction({from: account});
-      }).then(function() {
+      }).then(function(result) {
+        console.log(result);
         console.log("consumed one block");
         return;
       }).catch(function(err) {
@@ -559,7 +592,7 @@ $(function() {
 function setTable(n){
   let table=document.getElementById("gameBoard");
   var row = table.insertRow(0);
-  var letters=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'];
+  var letters=['*', 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'];
   for(var j=0; j<=n; j++){
     if(j>0){
       row.insertCell(j).outerHTML = '<th class="numbers">'+(j-1)+'</th>';
@@ -586,7 +619,7 @@ function setTable(n){
 function setAdversaryTable(n){
   let table=document.getElementById("adversaryBoard");
   var row = table.insertRow(0);
-  var letters=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'];
+  var letters=['*','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'];
   for(var j=0; j<=n; j++){
     if(j>0){
       row.insertCell(j).outerHTML = '<th class="numbers">'+(j-1)+'</th>';
