@@ -26,26 +26,36 @@
           <h1 class="text-center">Battleship</h1>
           <hr/>
           <br/>
+          <p style="text-align: center; color: aliceblue;">Game ID: <div class="reg" id="gameIDreg" style="color: aliceblue; text-align: center;"></div></p>
         </div>
       </div>      
       <div class="row">
         <div id="chooseSize">
-          <h2>
+          <h2 style="text-align: center;">
             Play new game (choose one below)
           </h2>
-          <div class="row">
+          <div id="messageArea"><span id="noGameFound" style="color: crimson;" hidden>No game found, try again...</span></div>
+          <div id="messageArea" style="margin-top: 40px;"><span id="joinGameResult"></span></div>
+          <div class="row" tyle="margin-top: 40px;">
             <div class="col-4">
-                <p style="text-align: center;">Play random game</p>
+                <b><p style="text-align: center;">Play random game</p></b>
                 <button type="button" class="btn btn-primary" id="playRandom">PLAY</button>
             </div>
             <div class="col-4">
-              <p style="text-align: center;">Play exist game</p>
-              <label for="gameId" class="form-label"></label>
-              <input type="text" class="form-control" id="gameId" placeholder="game ID">
-              <button type="button" class="btn btn-primary" id="playMatched">PLAY</button>
+              <div class="row">
+                <div class="col-12">
+                  <b><p style="text-align: center;">Play exist game</p></b>
+                  <label for="gameId" class="form-label"></label>
+                  <input type="text" class="form-control" id="gameId" placeholder="game ID">
+                  <p class="error" style="background-color: red; color:white; text-align: center;"></p>
+                </div>
+                <div class="col-12">
+                  <button type="button" class="btn btn-primary" id="playMatched">PLAY</button>
+                </div>
+              </div>
             </div>
             <div class="col-4">
-              <p style="text-align: center;">Create a new game</p>
+              <b><p style="text-align: center;">Create a new game</p></b>
               <div class="row">
                 <div class="col-12">
                   <label for="nShips" class="form-label">How many ships?</label>
@@ -68,14 +78,12 @@
         <div id="registration" hidden>
           <div class ="row">
             <div class="col-12">
-              <p>Game ID: <div class="reg" id="gameIDreg"></div></p>
-              <br>
               <label for="registrationAmount" class="form-label">Registration amount</label>
               <input type="number" class="form-control" id="registrationAmount">
               <br>
-              <button type="button" class="btn btn-primary" id="setRegAmount">SET REGISTRATION AMOUNT</button>
+              <button type="button" class="btn btn-primary" id="setRegAmount" style="margin: 20px;">SET REGISTRATION AMOUNT</button>
               <br>
-              <button type="button" class="btn btn-warning" id="payGame" disabled >SEND ETH AND START</button>
+              <button type="button" class="btn btn-warning" id="payGame" style="margin: 20px;" disabled >SEND ETH AND START</button>
             </div>
           </div>
         </div>
@@ -226,7 +234,7 @@
             </button>
           </div>
           <div class="toast-body">
-            An error occour in the game creation, please try again.
+            Game not found, retry later or try to change the game ID.
           </div>
         </div>
         

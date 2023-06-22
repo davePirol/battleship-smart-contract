@@ -24,6 +24,7 @@ contract Game {
 
     GameMatch[] public matches;
     event SendNewGameCreate(address player, bytes32 gameId, uint ships, uint tableSize);
+    event SendGameStart(address p1, address p2, bytes32 gameId);
     event SendRequestAmount(address player, int amount, bytes32 gameId);    //tell to the player to put the money to start play
     event SendTurnAdvice(address play, address wait, bytes32 gameId);   //tell to the player that is his/her turn
     event SendMovesAdvice(address player, string move, bytes32 gameId);  //tell to the player that have been shoot
@@ -41,9 +42,9 @@ contract Game {
         if(_gameId != 0){
             for(uint8 i=0; i < matches.length; i++){
                 if(matches[i].gameId == _gameId){
-                    if(matches[i].p2 == address(0)){
+                    if(matches[i].p2 == address(0) && matches[i].p1 != msg.sender){
                         matches[i].p2 = msg.sender;
-                        emit SendNewGameCreate(msg.sender, matches[i].gameId, matches[i].ships, matches[i].tableSize);
+                        emit SendGameStart(msg.sender, matches[i].p1, matches[i].gameId);
                         return;
                     }
                     else{
@@ -67,7 +68,7 @@ contract Game {
         for(uint8 i=0; i<matches.length; i++){
             if(matches[i].p2 == address(0) && matches[i].p1 != msg.sender){
                 matches[i].p2=msg.sender;
-                emit SendNewGameCreate(msg.sender, matches[i].gameId, matches[i].ships, matches[i].tableSize);
+                emit SendGameStart(msg.sender, matches[i].p1, matches[i].gameId);
                 return;
             }
         }
@@ -86,7 +87,7 @@ contract Game {
                     matches[i].registration=_registration;
                     if(matches[i].p1==msg.sender)
                         emit SendRequestAmount(matches[i].p2, _registration, matches[i].gameId);
-                    else
+                    else if(matches[i].p2==msg.sender)
                         emit SendRequestAmount(matches[i].p1, _registration, matches[i].gameId);
                     return;
                 }
@@ -135,7 +136,7 @@ contract Game {
     function pay(bytes32 _gameId) public payable{
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
-                require((msg.value/1000000000000000000) == uint(matches[i].registration));
+                require((msg.value/1 ether) == uint(matches[i].registration));
             }
         }
     }
@@ -146,7 +147,7 @@ contract Game {
                 if(matches[i].p1==msg.sender){
                     matches[i].b1=_hashedBoard;
                 }
-                else{
+                else if(matches[i].p2==msg.sender){
                     matches[i].b2=_hashedBoard;
                 }
                 matches[i].turn=true;
@@ -191,7 +192,7 @@ contract Game {
                 if(matches[i].p1==msg.sender){
                     _trueBoard=matches[i].b1;
                 }
-                else{
+                else if(matches[i].p2==msg.sender){
                     _trueBoard=matches[i].b2;
                 }        
                 
@@ -216,10 +217,10 @@ contract Game {
                     
                     address _wait;
                     if(msg.sender==matches[i].p1){
-                        _wait=matches[i].p2;
+                        _wait= matches[i].p2;
                         emit SendMoveResult(matches[i].p2, _hit, matches[i].lastMove, matches[i].gameId);
-                    }else{
-                        _wait =matches[i].p1;
+                    }else if(matches[i].p2==msg.sender){
+                        _wait = matches[i].p1;
                         emit SendMoveResult(matches[i].p1, _hit, matches[i].lastMove, matches[i].gameId);
                     }
 
@@ -229,8 +230,8 @@ contract Game {
                         
                     }else{
                         // otherwise emit the change turn event
-                        emit SendTurnAdvice(msg.sender, _wait, matches[i].gameId);
                         matches[i].turn ? matches[i].turn=false : matches[i].turn=true; 
+                        emit SendTurnAdvice(msg.sender, _wait, matches[i].gameId);
                     }                        
                     return;
                 }
@@ -269,7 +270,7 @@ contract Game {
         }
     }
 
-    function checkBoard(bytes32 _gameId, uint256[] memory _board) public payable returns(bool){        
+    function checkBoard(bytes32 _gameId, uint256[] memory _board) public payable{        
         for(uint8 i=0; i < matches.length; i++){
             if(matches[i].gameId == _gameId){
                 //controllo sovrapposizioni navi
@@ -280,10 +281,12 @@ contract Game {
                 }
 
                 if(count == matches[i].ships*2){ //there aren't ship overlapped
-                    payable(msg.sender).transfer(address(this).balance);
+                    uint _toSend= uint(matches[i].reward) * 1 ether;
+                    matches[i].reward = 0;
+                    payable(msg.sender).transfer(_toSend);
                     if(msg.sender == matches[i].p1)
                         emit SendVictory(msg.sender, matches[i].p2, matches[i].gameId);
-                    else
+                    else if(msg.sender == matches[i].p2)
                         emit SendVictory(matches[i].p2, msg.sender, matches[i].gameId);
                 }
             }
@@ -303,12 +306,16 @@ contract Game {
 
                 if(block.number >= (matches[i].lastBlockPlayed+5)){
                     if(msg.sender==matches[i].p1){
-                        payable(matches[i].p1).transfer(address(this).balance);
                         emit SendCheatPayment(matches[i].p2, matches[i].p1, matches[i].gameId);
+                        uint _toSend= uint(matches[i].reward) * 1 ether;
+                        matches[i].reward = 0;
+                        payable(matches[i].p1).transfer(_toSend);
                         return;
                     }else if(msg.sender == matches[i].p2){
-                        payable(matches[i].p2).transfer(address(this).balance);
                         emit SendCheatPayment(matches[i].p1, matches[i].p2, matches[i].gameId);
+                        uint _toSend= uint(matches[i].reward) * 1 ether;
+                        matches[i].reward = 0;
+                        payable(matches[i].p2).transfer(_toSend);
                         return;
                     }
                 }

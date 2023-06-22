@@ -230,7 +230,8 @@ App = {
       $('#gameIDreg').text(result[0]);
       $('#nShips').val(parseInt(result[2], 16));
       $('#tableWidth').val(parseInt(result[1], 16));
-      if(web3Utils.toBN(result[5]).toNumber() > -1){
+      if(web3Utils.toBN(result[5]).toNumber() > 0){
+        console.log(web3Utils.toBN(result[5]).toNumber());
         $('#registrationAmount').val(parseInt(result[5], 16));
         $('#registrationAmount').attr('disabled', true);
       }    
@@ -305,16 +306,36 @@ App = {
         const data=result;
         var newGameId=data.args.gameId;
         if(data.event=="SendNewGameCreate" && data.args.player==otherWeb3.eth.accounts[0]){
-          if (newGameId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+          if (newGameId !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+            $('#playNew').attr('disabled', true);
+            $('#playMatched').attr('disabled', true);
+            $('#playRandom').attr('disabled', true);
+            $('#joinGameResult').text('Wait for other player...');
+            $('#gameIDreg').text(newGameId);
+            App.getInfo();
+          }else{
+            $('#noGameFound').attr('hidden', false);
+            setTimeout(function(){
+              $('#noGameFound').attr('hidden', true);
+            }, 5000);
+          }    
+        }    
+
+      });
+      instance.SendGameStart({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
+        if (err) {
+          return error(err);
+        }
+        const data=result;
+        if(data.event=="SendGameStart" && (data.args.p1==otherWeb3.eth.accounts[0]  || data.args.p2==otherWeb3.eth.accounts[0])){
+          var newGameId=data.args.gameId;          
+          if (newGameId !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
             $('#gameIDreg').text(newGameId);
             $('#chooseSize').attr('hidden', true);
             $('#registration').attr('hidden', false);
             App.getInfo();
-          }else{
-            $('toastNewGameError').show();
-          }    
-        }    
-
+          }   
+        }
       });
       instance.SendRequestAmount({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){
         if (err) {
