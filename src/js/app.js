@@ -423,19 +423,22 @@ App = {
         }
         var gameId=$('#gameIDreg').text();
         const data=result;
-        if(data.event=="SendMoveResult" && result.args.player==otherWeb3.eth.accounts[0] && data.args.gameId==gameId){
-                    
+        if(data.event=="SendMoveResult" && data.args.gameId==gameId){
           console.log(data);
-          
-          if(data.args.hit){
-            $('#a'+data.args.coordinate).attr('class', 'hit');
-            $('#resultMove').text('hit');
-          }else{
-            $('#a'+data.args.coordinate).attr('class', 'miss');
-            $('#resultMove').text('miss');
+          if(result.args.player==otherWeb3.eth.accounts[0]){
+            if(data.args.hit){
+              $('#a'+data.args.coordinate).attr('class', 'hit');
+              $('#resultMove').text('hit');
+            }else{
+              $('#a'+data.args.coordinate).attr('class', 'miss');
+              $('#resultMove').text('miss');
+            }
+            $('#sendMove').attr('disabled', true);
+            $('#advice').text("Wait for your turn: keep calm!");
           }
-          $('#sendMove').attr('disabled', true);
-          $('#advice').text("Wait for your turn: keep calm!");
+          else if(result.args.opponent==otherWeb3.eth.accounts[0]){
+            $('#'+data.args.coordinate).css("background-color", "blue").css("border-radius", "13px");
+          }
         }
       });
       instance.SendRequestBoard({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function (err, result){

@@ -31,7 +31,7 @@ contract Game {
     event SendRequestBoard(address player, bytes32 gameId);   //tell to the player that have won
     event SendWrongMove(address player, bytes32 gameId);    //tell to the player that is not a valid move
     event SendVictory(address winner, address loser, bytes32 gameId);
-    event SendMoveResult(address player, bool hit, string coordinate, bytes32 gameId);
+    event SendMoveResult(address player, address opponent, bool hit, string coordinate, bytes32 gameId);
     event SendCheatPayment(address cheater, address receiver, bytes32 gameId);
     event SendStopReport(address player, bytes32 gameId);
      
@@ -218,10 +218,10 @@ contract Game {
                     address _wait;
                     if(msg.sender==matches[i].p1){
                         _wait= matches[i].p2;
-                        emit SendMoveResult(matches[i].p2, _hit, matches[i].lastMove, matches[i].gameId);
+                        emit SendMoveResult(matches[i].p2, matches[i].p1, _hit, matches[i].lastMove, matches[i].gameId);
                     }else if(matches[i].p2==msg.sender){
                         _wait = matches[i].p1;
-                        emit SendMoveResult(matches[i].p1, _hit, matches[i].lastMove, matches[i].gameId);
+                        emit SendMoveResult(matches[i].p1, matches[i].p2, _hit, matches[i].lastMove, matches[i].gameId);
                     }
 
                     // call check win function if return true then request to the winner player his board
